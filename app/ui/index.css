@@ -1,0 +1,981 @@
+*{
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body{
+    background-color: azure;
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Segoe UI', -apple-system, sans-serif;
+    font-size: 20px;
+}
+.app-shell{
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+.side-left{
+    width: 300px;
+    padding: 20px;
+    background-color: black;
+    display: flex;
+    flex-direction: column;
+    gap: 45px;
+}
+.side-left .title{
+    color: wheat;
+    font-size: 30px;
+    text-align: center;
+}
+.side-left .nav-item{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    color: wheat;
+    background-color: gray;
+    border: 1px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+.side-left .nav-item.active{
+    background-color: blue;
+    color: white;
+    border-color: white;
+}
+.spacer{
+    flex: 1;
+}
+.side-center{
+    flex: 1;
+    overflow-y: auto;
+}
+
+.side-center .tab{
+    padding: 15px;
+    display: none;
+    flex-direction: column;
+}
+
+.side-center .tab.active{
+    display: flex;
+}
+
+.session-title{
+    height: 50px;
+    background-color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-radius: 20px;
+    margin: 10px;
+    border: 2px solid wheat;
+}
+
+.session-title .session-tile-data{
+    color: black;
+}
+
+.data-table{
+    max-width: 1200px;
+    max-height: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin: 30px;
+    border: 5px solid wheat;
+    padding: 10px;
+    overflow: hidden;
+}
+
+.data-table .grid-table{
+    overflow: auto;
+    padding: 10px;
+}
+.data-table .list-table{
+    display: flex;
+    gap: 5px;
+}
+
+.data-table .grid-table table{
+    border-collapse: collapse;
+    padding: 100px;
+}
+
+.data-table .grid-table table tr,.data-table .grid-table table tr th,.data-table .grid-table table tr td{
+    border: 2px solid #1e1e1e;
+    color: black;
+}
+
+.data-table .grid-table table tr td{
+    padding: 10px;
+    font-size: 15px;
+}
+.data-table .grid-table table tr th{
+    padding: 10px;
+    font-size: 15px;
+}
+
+.data-table .list-table .list-table-item{
+    width: 100px;
+    height: 30px;
+    background-color:wheat;
+    border: 1px solid blue;
+    color: blue;
+    font-size: 15px;
+    border-radius: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+}
+
+.div_create_session{
+    margin: 15px;
+    border-radius: 15px;
+    background-color: white;
+    border: 5px solid wheat;
+    padding: 15px;
+}
+.div_create_session .div_title{
+    height: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    color: black;
+}
+
+.div_create_session .btns_create_session {
+    margin: 10px;
+    background-color: white;
+    border-radius: 15px;
+    padding: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    gap: 50px;
+}
+.div_create_session .btns_create_session .form-btn-create-session{
+    display: flex;
+    gap: 50px;
+}
+.div_create_session .btns_create_session .form-btn-create-session .form-group-create-session{
+    display: flex;
+    gap: 15px;
+}
+
+.div_create_session .btns_create_session .btn-create-session-option{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+    background-color: wheat;
+    color: blue;
+    cursor: pointer;
+    border-radius: 15px;
+    border: 1px solid blue;
+
+}
+
+.div_create_session .div_for_new_session{
+    margin: 10px;
+    background-color: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.rslt-create-session-option{
+    display: none;
+    color: red;
+}
+
+.div_create_session .div_for_new_session .new-session{
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+}
+
+.div_create_session .div_for_new_session .new-session  .form{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    gap: 30px;
+}
+
+.div_create_session .div_for_new_session .new-session  .form .name-session{
+    color: black;
+    font-style: normal;
+}
+.div_create_session .div_for_new_session .new-session  .form input{
+    border: 2px solid gray;
+    border-radius: 15px;
+    width: 300px;
+    padding: 10px;
+    outline: none;
+    color: black;
+    font-size: 15px;
+}
+
+.div_create_session .div_for_new_session .new-session  .form input:focus{
+    border-color: blue;
+}
+
+.div_create_session .div_for_new_session .new-session  .form .path-session{
+    padding: 10px;
+    border: 2px solid blue;
+    background-color: wheat;
+    color: blue;
+    cursor: pointer;
+    border-radius: 20px;
+}
+
+.div_create_session .div_for_new_session .new-session  .form .path-session:hover{
+    transform: scale(1.01);
+}
+
+.div_create_session .div_for_new_session .session-life {
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+}
+
+.div_create_session .div_for_new_session .session-life   .form{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    gap: 30px;
+}
+.div_create_session .div_for_new_session .session-life  .form .name-session{
+    color: black;
+    font-style: normal;
+}
+.div_create_session .div_for_new_session .session-life  .form input{
+    border: 2px solid gray;
+    border-radius: 15px;
+    width: 300px;
+    padding: 10px;
+    outline: none;
+    color: black;
+    font-size: 15px;
+}
+
+.div_create_session .div_for_new_session .session-life  .form input:focus{
+    border-color: blue;
+}
+
+.div_create_session .div_for_new_session .session-life  .form .path-session{
+    padding: 10px;
+    border: 2px solid blue;
+    background-color: wheat;
+    color: blue;
+    cursor: pointer;
+    border-radius: 20px;
+}
+
+.div_create_session .div_for_new_session .session-life .form .path-session:hover{
+    transform: scale(1.01);
+}
+
+
+.modal_table_utils {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.modal_table_utils .modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    max-width: 95vw;
+    max-height: 90vh;
+    width: 100%;
+    max-width: 1200px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.modal_table_utils .modal-content .title {
+    margin-bottom: 25px;
+    text-align: center;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #e0e0e0;
+}
+
+.modal_table_utils .modal-content .title h2 {
+    margin: 0;
+    color: #333;
+    font-size: 24px;
+    font-weight: 600;
+}
+
+
+.modal_table_utils .modal-content .names_variables {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 20px;
+}
+
+.modal_table_utils .modal-content .names_variables .grid-table-columns-variables {
+    display: none;
+    grid-template-columns: repeat(5, 300px);
+    gap: 2px;
+    width: 100%;
+    min-width: fit-content;
+}
+
+.modal_table_utils .modal-content .names_variables .grid-table-columns-variables .div_var {
+    min-width: 300px;
+    height: 50px;
+    border: 2px solid #d1d5db;
+    color: #374151;
+    padding: 12px 16px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #f9fafb;
+    transition: all 0.2s ease;
+}
+
+.modal_table_utils .modal-content .names_variables .grid-table-columns-variables .div_var:hover {
+    background-color: #f3f4f6;
+    border-color: #9ca3af;
+}
+
+.modal_table_utils .modal-content .names_variables .grid-table-columns-variables .div_var.header {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border-color: #1e40af;
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.modal_table_utils .modal-content .names_variables .grid-table-columns-variables .div_var.header:hover {
+    background: linear-gradient(135deg, #2563eb, #1e40af);
+    transform: translateY(-1px);
+}
+
+.modal_table_utils .modal-content .func_utils{
+    margin: 20px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 100px;
+}
+.modal_table_utils .modal-content .func_utils div{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px;
+    border-radius: 15px;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    cursor: pointer;
+}
+
+.modal_table_utils .modal-content .func_utils div:hover{
+    transform: scale(1.01);
+}
+
+.modal_add_row{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.modal_add_row .modal-content{
+    width: 600px;
+    height: 500px;
+    background-color: white;
+    border-radius: 20px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal_add_row .modal-content .title{
+    height: 50px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+    color: blue;
+    background-color: wheat;
+}
+
+.modal_add_row .modal-content .div_editable{
+    display: grid;
+    gap: 0px;
+    overflow: auto;
+    margin: 15px;
+}
+
+.modal_add_row .modal-content .div_editable .add_row{
+    width: 200px;
+    min-height: 40px;
+    border: 2px solid gray;
+    color: #374151;
+}
+
+.modal_add_row .modal-content .div_editable .add_row:hover{
+    border-color: #333;
+}
+
+.modal_add_row .modal-content .div_editable .add_row.header{
+    background:linear-gradient(135deg, rgb(77, 77, 176) 0%, rgb(32, 32, 226) 100%);
+    color: white;
+}
+
+.modal_add_row .modal-content .submit_add_row{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+    background-color: #1d4ed8;
+    color: white;
+    border-radius: 15px;
+    border-color: wheat;
+    cursor: pointer;
+    margin-left: 50px;
+    margin-right: 50px;
+}
+
+.modal_add_row .modal-content .footer{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 20px;
+    margin: 20px;
+}
+
+.modal_add_row .modal-content .footer .cancel_add_row{
+    padding: 10px;
+    background-color: wheat;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border: 2px solid blue;
+    color: blue;
+    cursor: pointer;
+    border-radius: 20px;
+}
+
+.modal_add_row .modal-content .footer .cancel_add_row:hover{
+    transform: scale(1.01);
+}
+
+.modal_add_column{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1200;
+}
+
+.modal_add_column .modal_content{
+    width: 400px;
+    height: 400px;
+    border-radius: 20px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: white;
+}
+
+.modal_add_column .modal_content .title{
+    height: 50px;
+    background-color: #1d4ed8;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+
+}
+
+.modal_add_column .modal_content .form{
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.modal_add_column .modal_content .form label{
+    color: #374151;
+    font-size: 15px;
+}
+
+.modal_add_column .modal_content .form input{
+    border: 2px solid  #374151;
+    width: 250px;
+    height: 45px;
+    outline: none;
+    color:gray;
+    font-size: 20px;
+    border-radius: 20px;
+    padding: 10px;
+}
+
+.modal_add_column .modal_content .form input:focus{
+    border-color: blue;
+}
+
+
+.modal_add_column .modal_content .add_column_new{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-left: 50px;
+    margin-right: 50px;
+    background-color: blue;
+    border: 2px solid black;
+    border-radius: 15px;
+    color: white;
+    cursor: pointer;
+}
+
+
+.modal_add_column .modal_content .add_column_new:hover{
+    transform: scale(1.01);
+}
+
+.modal_delete_column{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1200;
+}
+
+.modal_delete_column .modal_content{
+    width: 400px;
+    height: 400px;
+    border-radius: 20px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background-color: white;
+}
+
+.modal_delete_column .modal_content .title{
+    height: 50px;
+    background-color: #1d4ed8;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+
+}
+
+.modal_delete_column .modal_content .form{
+    margin: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.modal_delete_column .modal_content .form label{
+    color: #374151;
+    font-size: 15px;
+}
+
+.modal_delete_column .modal_content .form input{
+    border: 2px solid  #374151;
+    width: 250px;
+    height: 45px;
+    outline: none;
+    color:gray;
+    font-size: 20px;
+    border-radius: 20px;
+    padding: 10px;
+}
+
+.modal_delete_column .modal_content .form input:focus{
+    border-color: blue;
+}
+
+
+.modal_delete_column .modal_content .delete_column{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-left: 50px;
+    margin-right: 50px;
+    background-color: blue;
+    border: 2px solid black;
+    border-radius: 15px;
+    color: white;
+    cursor: pointer;
+}
+
+
+.modal_delete_column.modal_content .delete_column:hover{
+    transform: scale(1.01);
+}
+
+#editor .utils-table-all{
+    margin: 20px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    gap: 20px;
+}
+
+#editor .utils-table-all .add-table-all{
+    padding: 15px;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+#editor .utils-table-all .delete-table{
+    padding: 15px;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+#editor .utils-table-all .add-table-all:hover,
+#editor .utils-table-all .delete-table:hover{   
+    transform: scale(1.01); 
+}
+.modal-add-table{
+    position: fixed;
+    top: 0;
+    left: 0;    
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 1300;
+}
+
+.modal-add-table .modal-content{
+    width: 400px;
+    height: auto;
+    background-color: white;
+    border-radius: 20px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.modal-add-table .modal-content .title{
+    height: 50px;
+    padding: 15px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    border-bottom: 2px solid blue;
+    color: blue;
+}
+
+.modal-add-table .modal-content  .options{
+    margin: 20px;
+    display: flex;
+    flex-direction: row;
+    gap: 20px;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.table_added{
+    padding: 15px;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.table_added.active{
+    background-color: blue;
+    color: white;
+}
+
+.modal-add-table .modal-content .main{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+    padding: 20px;
+    margin: 20px;
+}
+
+.modal-add-table .modal-content .main .table_option{
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+    padding: 15px;
+    margin: 15px;
+}
+.modal-add-table .modal-content .main .table_option.active{
+    display:flex;
+}
+
+.form-group-new-table{
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+.form-group-new-table label{
+    margin-bottom: 5px;
+    color: #374151;
+    font-size: 15px;
+}
+.form-group-new-table input{
+    border: 2px solid  #374151;
+    width: 250px;
+    height: 45px;
+    outline: none;
+    color:gray;
+    font-size: 20px;
+    border-radius: 20px;
+    padding: 10px;
+}
+.form-group-new-table input:focus{
+    border-color: blue;
+}
+.modal-add-table .modal-content .main .table_option .create_new_table{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-left: 50px;
+    margin-right: 50px;
+    background-color: blue;
+    border: 2px solid black;
+    border-radius: 15px;
+    color: white;
+    cursor: pointer;
+}
+.modal-add-table .modal-content .main .table_option .create_new_table:hover{
+    transform: scale(1.01);
+}
+.form-group-import-table{
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+
+.modal-add-table .modal-content .main .table_option .import_table{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-left: 50px;
+    margin-right: 50px;
+    background-color: blue;
+    border: 2px solid black;
+    border-radius: 15px;
+    color: white;
+    cursor: pointer;
+    padding: 15px;
+}
+
+.modal-add-table .modal-content .footer{
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: flex-end;
+}
+
+.modal-add-table .modal-content .footer .cancel{
+    padding: 15px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: wheat;
+    border: 2px solid blue;
+    color: blue;
+    cursor: pointer;
+    margin: 30px;
+    border-radius: 20px;
+}
+
+
+.modal-add-table .modal-content .footer .cancel:hover{
+    transform: scale(1.01);
+}
+
+.modal-delete-table{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1300;
+}
+.modal-delete-table .modal-content{
+    width: 400px;
+    height: auto;
+    padding: 0px;
+    border-radius: 20px;
+    background-color: white;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.modal-delete-table .modal-content .title{
+    padding: 15px;
+    background-color: wheat;
+    color: blue;
+    border-bottom: 2px solid blue;
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.modal-delete-table .modal-content .form-group-delete-table{
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    gap: 20px;
+    padding: 30px;
+}
+.modal-delete-table .modal-content .form-group-delete-table label{
+    display: block;
+    color: black;
+    font-size: 15px;
+}
+
+.modal-delete-table .modal-content .form-group-delete-table input{
+    width: 300px;
+    border: 2px solid black;
+    padding: 10px;
+    font-size: 20px;
+    color: gray;
+    outline: none;
+    border-radius: 20px;
+}
+
+.modal-delete-table .modal-content .form-group-delete-table input:focus{
+    border-color: blue;
+}
+
+.modal-delete-table .modal-content .delete-table-aply{
+ background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    padding: 15px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    cursor: pointer;
+    margin: 20px;
+    border-radius: 20px;
+    margin-left: 50px;
+    margin-right: 50px;
+}
+.modal-delete-table .modal-content .delete-table-aply:hover{
+    transform: scale(1.01);
+}
+
+.modal-delete-table .modal-content .cancel{
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    padding: 15px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    cursor: pointer;
+    margin: 20px;
+    border-radius: 20px;
+    margin-left: 50px;
+    margin-right: 50px;
+}
+.modal-delete-table .modal-content .cancel:hover{
+    transform: scale(1.01);
+}

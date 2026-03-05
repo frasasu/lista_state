@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="index.css">
+    <title>Lista State</title>
+</head>
+<body>
+<div class="app-shell">
+    <div class="side-left">
+        <div class="title">Lista State</div>
+        <div class="nav-item active" onclick="dataManager.switchTab('editor')">Data Editor</div>
+        <div class="nav-item " onclick="dataManager.switchTab('session')">Data Analysis</div>
+        <div class="nav-item " onclick="dataManager.switchTab('analysis')">Session</div>
+        <div  class="spacer"></div>
+        <div class="nav-item " onclick="dataManager.switchTab('settings')">Settings</div>
+    </div>
+    <div  class="side-center">
+        <div id="editor" class="tab active">
+            <div class="session-title">
+                <div id="session-tile-data" class="session-tile-data">New session</div>
+            </div>
+            <div class="data-table">
+                <div class="grid-table"></div>
+                <div class="list-table"></div>
+            </div>
+            <div class="utils-table-all">
+                <div class="add-table-all" onclick="dataManager.openModalAddTable()">Add table</div>
+                <div class="delete-table" onclick="dataManager.openModalDeleteTable()">Delete table</div>
+            </div>
+        </div>
+        <div id="analysis" class="tab">
+            <div class="session-title">
+                <div id="session-tile-data" class="session-tile-data">New session</div>
+            </div>
+            <div class="div_create_session">
+                <div class="div_title">Create Session</div>
+                <div class="btns_create_session">
+                    <div class="form-btn-create-session">
+                        <div class="form-group-create-session">
+                            <label>Create new session</label>
+                            <input type="checkbox"  id="new_session">
+                        </div>
+                        <div class="form-group-create-session">
+                            <label>Import session</label>
+                            <input type="checkbox" id="session-life">
+                        </div>
+                    </div>
+                    <div class="btn-create-session-option" onclick="dataManager.ChooseOptionCreateSession()">Active</div>
+                    <div class="rslt-create-session-option" id="rslt-create-session-option"></div>
+                </div>
+                <div class="div_for_new_session" id="div_for_new_session">Choisir l'option</div>
+            </div>
+        </div>
+        <div id="session" class="tab">
+            <div class="session-title">
+                <div id="session-tile-data" class="session-tile-data">New session</div>
+            </div>
+        </div>
+        <div id="settings" class="tab">
+            <div class="session-title">
+                <div id="session-tile-data" class="session-tile-data">New session</div>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="modal_table_utils" class="modal_table_utils">
+    <div class="modal-content">
+        <div class="title"></div>
+        <div class="names_variables">
+            <div class="grid-table-columns-variables" id="grid-table-columns-variables"></div>
+        </div>
+        <div class="func_utils" id="func_utils">
+            <div class="save_changes_table" id="save_changes_table" onclick="dataManager.SaveChanges()">Save changes</div>
+            <div class="add_row" id="add_row" onclick="dataManager.OpenModalAddRow()">Add row</div>
+            <div class="add_column" id="add_column" onclick="dataManager.OpenModalAddColumn()">Add column</div>
+            <div class="delete_column" id="delete_column" onclick="dataManager.OpenModalDeleteColumn()">Delete column</div>
+        </div>
+    </div>
+</div>
+<div id="modal_add_row" class="modal_add_row">
+    <div class="modal-content">
+        <div class="title">Add row to Table</div>
+        <div class="div_editable"></div>
+        <div class="submit_add_row" id="submit_add_row">Add that row</div>
+        <div class="footer">
+            <div class="cancel_add_row">Cancel</div>
+        </div>
+    </div>
+</div>
+<div id="modal_add_column" class="modal_add_column">
+    <div class="modal_content">
+        <div class="title">Add column</div>
+        <div class="form">
+            <label>Name of new column:</label>
+            <input type="text" id="name_column_new" class="name_column_new">
+        </div>
+        <div class="add_column_new">Add column</div>
+    </div>
+</div>
+<div id="modal_delete_column" class="modal_delete_column">
+    <div class="modal_content">
+        <div class="title">Delete column</div>
+        <div class="form">
+            <label>Name of  column to delete:</label>
+            <input type="text" id="name_column_delete" class="name_column_delete">
+        </div>
+        <div class="delete_column">Delete column</div>
+    </div>
+</div>
+<div id="modal-add-table" class="modal-add-table">
+    <div class="modal-content">
+        <div class="title">Add table</div>
+        <div class="options">
+            <div class="table_added active" onclick="dataManager.switchTabOption('new_table_option')">New table</div>
+            <div class="table_added" onclick="dataManager.switchTabOption('old_table_option')">Import table</div>
+        </div>
+        <div class="main">
+            <div id="new_table_option" class="table_option active">
+                <div class="form-group-new-table">
+                    <label>Table name:</label>
+                    <input type="text" id="table_name_new" class="table_name_new">
+                </div>
+                <div class="form-group-new-table">
+                    <label>Columns (separated by commas):</label>
+                    <input type="text" id="table_columns_new" class="table_columns_new">
+                </div>
+                <div class="create_new_table" onclick="dataManager.CreateNewTable()">Create table</div>
+            </div>
+            <div id="old_table_option" class="table_option">
+                <div class="import_table" onclick="dataManager.ImportTable()">Import table</div>
+            </div>
+        </div>
+        <div class="footer">
+            <div class="cancel" id="cancel">Cancel</div>
+        </div>
+    </div>
+</div>
+<div id="modal-delete-table" class="modal-delete-table">
+    <div class="modal-content">
+        <div class="title">Delete table</div>
+        <div class="form-group-delete-table">
+            <label>Name of table to delete:</label>
+            <input type="text" id="name_table_to_delete">
+        </div>
+        <div class="delete-table-aply" onclick="dataManager.DeleteTable()">Delete Table</div>
+        <div class="cancel">Cancel</div>
+    </div>
+</div>
+ <script src="index.js"></script>
+</body>
+</html>
