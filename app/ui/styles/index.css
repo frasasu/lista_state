@@ -98,6 +98,8 @@ body{
 .data-table .list-table{
     display: flex;
     gap: 5px;
+    width: 500px;
+    overflow-x: auto;
 }
 
 .data-table .grid-table table{
@@ -120,7 +122,7 @@ body{
 }
 
 .data-table .list-table .list-table-item{
-    width: 100px;
+    width: auto;
     height: 30px;
     background-color:wheat;
     border: 1px solid blue;
@@ -602,6 +604,23 @@ body{
     transform: scale(1.01);
 }
 
+.modal_add_column .modal_content .cancel{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-right: 50px;
+    margin-left: 50px;
+    background-color: wheat;
+    color: blue;
+    border: 1px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.modal_add_column .modal_content .cancel:hover{
+    transform: scale(1.01);
+}
+
 .modal_delete_column{
     position: fixed;
     top: 0;
@@ -684,7 +703,24 @@ body{
 }
 
 
-.modal_delete_column.modal_content .delete_column:hover{
+.modal_delete_column .modal_content .delete_column:hover{
+    transform: scale(1.01);
+}
+
+.modal_delete_column .modal_content .cancel{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-left: 50px;
+    margin-right: 50px;
+    background-color: wheat;
+    color: blue;
+    border: 1px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.modal_delete_column .modal_content .cancel:hover{
     transform: scale(1.01);
 }
 

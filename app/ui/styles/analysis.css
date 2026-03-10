@@ -1,0 +1,293 @@
+.analysis{
+    max-width: 1200px;
+    max-height: 900px;
+    min-height: 750px;
+    border: 5px solid wheat;
+    border-radius: 15px;
+    margin: 30px;
+    display: flex;
+}
+
+.analysis .left{
+    width: 60%;
+    margin: 15px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+.analysis .right{
+    flex: 1;
+    margin: 15px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+.analysis .left .top{
+    margin: 20px;
+    width: 90%;
+    flex: 1;
+    background-color: white;
+    box-shadow: 0 25px 40px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    border-radius: 15px;
+}
+
+.analysis .left .bottom{
+    margin: 20px;
+    width: 90%;
+    height: 250px;
+    background-color: white;
+    box-shadow: 0 25px 40px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    border-radius: 15px;
+}
+
+.analysis .left .top .editor-wrapper {
+            position: relative;
+            height: 450px;
+            overflow: auto;
+            border-radius: 20px;
+}
+
+.analysis .left .top .editor-wrapper .line-numbers {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 60px;
+            height: 100%;
+            background-color: #1e1e1e;
+            color: #858585;
+            text-align: right;
+            padding: 15px 10px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            user-select: none;
+            border-right: 1px solid #3e3e42;
+            overflow: hidden;
+}
+
+.analysis .left .top #editor {
+            background-color: #282a36;
+            color:#f8f8f2;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+            line-height: 1.5;
+            padding: 15px 75px 15px 75px;
+            border: none;
+            outline: none;
+            width: 100%;
+            height: 100%;
+            white-space: pre;
+            overflow-wrap: normal;
+            overflow-x: auto;
+            min-width: 100%;
+            min-height: 100%;
+            resize: none;
+            tab-size: 4;
+}
+
+.analysis .left .bottom .box{
+    margin: 10px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.analysis .left .bottom .box div{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 5px;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.analysis .left .bottom .under{
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.analysis .left .bottom .under .title{
+    color: blue;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+    padding: 5px;
+}
+
+.modal-new-analysis{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.modal-new-analysis .modal-content{
+    width: 400px;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    padding: 0px;
+    background-color: white;
+    border-radius: 15px;
+}
+
+.modal-new-analysis .modal-content .title{
+    height: 60px;
+    background-color: blue;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.modal-new-analysis .modal-content .input{
+    width: 300px;
+    height: 70px;
+    border: 2px solid blue;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 50px;
+}
+
+.modal-new-analysis .modal-content .input input{
+    border: none;
+    outline: none;
+    color: #3e3e42;
+    font-size: 20px;
+}
+
+.modal-new-analysis .modal-content .btns{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin:50px ;
+}
+
+.modal-new-analysis .modal-content .btns div{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    padding: 5px;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+
+.modal-delete-analysis{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: none;
+    justify-content: space-around;
+    align-items: center;
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.modal-delete-analysis .modal-content{
+    width: 400px;
+    height: 400px;
+    display: flex;
+    flex-direction: column;
+    padding: 0px;
+    background-color: white;
+    border-radius: 15px;
+}
+
+.modal-delete-analysis .modal-content .title{
+    height: 60px;
+    background-color: blue;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 15px;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.modal-delete-analysis .modal-content .input{
+    width: 300px;
+    height: 70px;
+    border: 2px solid blue;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 50px;
+}
+
+.modal-delete-analysis .modal-content .input input{
+    border: none;
+    outline: none;
+    color: #3e3e42;
+    font-size: 20px;
+}
+
+.modal-delete-analysis .modal-content .btns{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin:50px ;
+}
+
+.modal-delete-analysis .modal-content .btns div{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    background-color: wheat;
+    color: blue;
+    border: 2px solid blue;
+    padding: 5px;
+    border-radius: 15px;
+    cursor: pointer;
+}
+
+.analysis .left .bottom .under .liste-analysis{
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 10px;
+    overflow-x: auto;
+    width: 300px;
+}
+
+.analysis .left .bottom .under .liste-analysis .div div{
+    background-color: wheat;
+    padding: 10px;
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    color: blue;
+    border: 2px solid blue;
+    border-radius: 15px;
+    cursor: pointer;
+    margin: 15px;
+}

@@ -1,35 +1,40 @@
+import { DataCore } from "./DataCore.js";
+
 class DataTableManager {
     constructor() {
-        this.name_session_selected = "";
-        this.datas = {};
-        this.currentNameTable = NaN;
+        this.core = DataCore;
+        this.currentNameTable = null;
         this.grid_table = document.querySelector(".data-table .grid-table");
         this.list_table = document.querySelector(".data-table .list-table");
     }
 
     async init() {
         window.addEventListener("pywebviewready", async () => {
-            const initial = await pywebview.api.initial_data();
-            if (initial.length == 2) {
-                this.name_session_selected = initial[0];
-                this.datas = initial[1];
-            }
 
-            if (this.name_session_selected && this.datas) {
+            const initial = await pywebview.api.initial_data();
+            if (initial) {
+                this.core.update(initial[0], initial[1]);
+                this.refreshUI();
+
                 const session_tile = document.querySelectorAll(".session-tile-data");
                 session_tile.forEach(tile => {
-                    tile.innerHTML = `<div>Session - ${this.name_session_selected}</div>`;
-                });
+                    tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
+            }
 
-                const first_table = Object.keys(this.datas.tables)[0]
-                this.currentNameTable = first_table
-                if (first_table){
-                    this.displayTable(first_table)
-                }
-                this.displayListTable();
+       );
             }
         });
     }
+
+    refreshUI() {
+        const firstTable = Object.keys(this.core.payload.tables)[0];
+        if (firstTable){
+             this.displayTable(firstTable);
+             this.currentNameTable = firstTable;
+        };
+        this.displayListTable();
+    }
+
 
     switchTab(id) {
         document.querySelectorAll(".nav-item").forEach(nav => {
@@ -43,7 +48,7 @@ class DataTableManager {
     }
 
     displayTable(name){
-    const tableData = this.datas.tables[name];
+    const tableData =this.core.payload.tables[name];
     const columns = Object.keys(tableData);
     const length_columns = columns.length;
 
@@ -90,10 +95,10 @@ class DataTableManager {
 
     displayListTable(){
         this.list_table.innerHTML = '';
-    for(let name of Object.keys(this.datas.tables)) {
+    for(let name of Object.keys(this.core.payload.tables)) {
         let list = document.createElement("div");
         list.className = "list-table-item";
-        list.innerHTML = `<div onclick="dataManager.OpenModalTableUtils(this)">${name}</div>`;
+        list.innerHTML = `<div ondblclick="dataManager.OpenModalTableUtils(this)" onclick="dataManager.playTable(this)">${name}</div>`;
         this.list_table.appendChild(list);
     }
     }
@@ -142,44 +147,97 @@ class DataTableManager {
     }
 
     async ChoosePathNewSession() {
-        const name = document.getElementById("name-session");
-        if (name && name.value) {
-            const name_session = await pywebview.api.ChoosePathNewSession(name.value);
-            if (name_session[0]) {
-                this.name_session_selected = name_session[0];
-                this.datas = name_session[1];
-                const session_tile = document.querySelectorAll(".session-tile-data");
-                session_tile.forEach(tile => {
-                    tile.innerHTML = `<div>Session - ${this.name_session_selected}</div>`;
-                });
+    const nameInput = document.getElementById("name-session");
+    if (nameInput && nameInput.value) {
+        const result = await pywebview.api.ChoosePathNewSession(nameInput.value);
 
-                const first_table = Object.keys(this.datas.tables)[0]
-                if (first_table){
-                    this.displayTable(first_table)
+        if (result && result[0]) {
+
+            this.core.sessionName = result[0];
+            this.core.payload = result[1];
+
+
+            const session_tiles = document.querySelectorAll(".session-tile-data");
+            session_tiles.forEach(tile => {
+                tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
+            });
+
+
+            const first_table = Object.keys(this.core.payload.tables)[0];
+            if (first_table) {
+                this.currentNameTable = first_table;
+                this.displayTable(first_table);
+            }
+            this.displayListTable();
+
+            if (window.analysisManager) {
+
+                window.analysisManager.displayListAnalysis();
+
+
+                const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
+                if (firstAnalysis) {
+                    window.analysisManager.currentAnalysisName = firstAnalysis;
+                    window.analysisManager.displayAnalysis(firstAnalysis);
+                } else {
+
+                    window.analysisManager.editor.value = "";
+                    window.analysisManager.updateLineNumbers();
                 }
-                this.displayListTable();
             }
         }
     }
+}
 
-    async ChoosePathSessionLife() {
-        const name_session = await pywebview.api.open_file_dialog();
-        if (name_session[0]) {
-            this.name_session_selected = name_session[0];
-            this.datas = name_session[1];
-            const session_tile = document.querySelectorAll(".session-tile-data");
-            session_tile.forEach(tile => {
-                tile.innerHTML = `<div>Session - ${this.name_session_selected}</div>`;
-            });
-                const first_table = Object.keys(this.datas.tables)[0]
-                if (first_table){
-                    this.displayTable(first_table)
-                }
-                this.displayListTable();
+   async ChoosePathSessionLife() {
+    const name_session = await pywebview.api.open_file_dialog();
+
+    if (name_session && name_session[0]) {
+
+        this.core.sessionName = name_session[0];
+        this.core.payload = name_session[1];
+
+
+        const session_tile = document.querySelectorAll(".session-tile-data");
+        session_tile.forEach(tile => {
+            tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
+        });
+
+
+        const first_table = Object.keys(this.core.payload.tables)[0];
+        if (first_table) {
+            this.currentNameTable = first_table;
+            this.displayTable(first_table);
+        } else {
+            this.grid_table.innerHTML = '<div class="empty-state">Aucune table dans cette session</div>';
         }
+        this.displayListTable();
+
+
+        if (window.analysisManager) {
+            window.analysisManager.displayListAnalysis();
+
+            const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
+            if (firstAnalysis) {
+                window.analysisManager.currentAnalysisName = firstAnalysis;
+                window.analysisManager.displayAnalysis(firstAnalysis);
+            } else {
+
+                window.analysisManager.editor.value = "";
+                window.analysisManager.updateLineNumbers();
+            }
+        }
+    }
+}
+    playTable(me){
+        this.SaveCurrentTable();
+        this.currentNameTable = me.innerText;
+        this.displayTable(me.innerText);
     }
 
     OpenModalTableUtils(me) {
+        this.SaveCurrentTable();
+        this.displayTable(me?.innerText);
         const modal = document.getElementById("modal_table_utils");
         modal.style.display = "flex";
 
@@ -198,7 +256,7 @@ class DataTableManager {
         const table = document.getElementById("grid-table-columns-variables");
         table.innerHTML = "";
 
-        const columns = Object.keys(this.datas.tables[this.currentNameTable])
+        const columns = Object.keys(this.core.payload.tables[this.currentNameTable])
         const nbColumns = columns.length
 
         for (let i = 0; i < nbColumns + 1; i++) {
@@ -222,7 +280,7 @@ class DataTableManager {
     }
 
    OpenModalAddRow() {
-    if (!this.currentNameTable || !this.datas.tables[this.currentNameTable]) {
+    if (!this.currentNameTable || !this.core.payload.tables[this.currentNameTable]) {
         alert("Aucune table sélectionnée !");
         return;
     }
@@ -232,7 +290,7 @@ class DataTableManager {
 
     div_editable.innerHTML = "";
 
-    const columns = Object.keys(this.datas.tables[this.currentNameTable]);
+    const columns = Object.keys(this.core.payload.tables[this.currentNameTable]);
     const nbColumns = columns.length;
 
     div_editable.style.display = "grid";
@@ -263,12 +321,12 @@ class DataTableManager {
 document.getElementById("submit_add_row").addEventListener("click", async (e) => {
     e.stopPropagation();
 
-    if (!this.currentNameTable || !this.datas.tables[this.currentNameTable]) {
+    if (!this.currentNameTable || !this.core.payload.tables[this.currentNameTable]) {
         alert("Aucune table sélectionnée !");
         return;
     }
 
-    const tableData = this.datas.tables[this.currentNameTable];
+    const tableData = this.core.payload.tables[this.currentNameTable];
 
     const headers = document.querySelectorAll(
         ".modal_add_row .modal-content .div_editable .add_row.header"
@@ -323,7 +381,7 @@ document.getElementById("submit_add_row").addEventListener("click", async (e) =>
     }
     this.displayTable(this.currentNameTable);
 
-    await pywebview.api.save_as(this.datas);
+    await this.core.save();
 
     document.getElementById("modal_add_row").style.display = "none";
 
@@ -339,68 +397,51 @@ document.getElementById("submit_add_row").addEventListener("click", async (e) =>
             document.getElementById("modal_add_row").style.display = "none";
         });
 
-        document.querySelector("#modal_add_column .add_column_new").addEventListener("click", (e) => {
+        document.querySelector("#modal_add_column .add_column_new").addEventListener("click", async (e) => {
             e.stopPropagation();
 
             const input = document.getElementById("name_column_new");
             const new_column_added = input.value.trim();
 
-            const Columns = Object.keys(this.datas.tables[this.currentNameTable])
-            const nbColumns = Columns.length
+            const Columns = Object.keys(this.core.payload.tables[this.currentNameTable])
+            const currentTable = this.core.payload.tables[this.currentNameTable];
 
             if (new_column_added && this.currentNameTable !== "") {
-                let find=false;
-                for(let i=0;i<nbColumns;i++){
-                         if(Columns[i] === new_column_added){
-                            find = true;
-                            break;
-                         }
-                }
 
-                if(find === true){
-                 document.getElementById("modal_add_column").style.display = "none";
-                 return
-                }
+                if (Columns.includes(new_column_added)) {
+                      alert("Cette colonne existe déjà !");
+                      return;
+                 }
 
-                this.datas.tables[this.currentNameTable][new_column_added]=[];
+                 const rowCount = Columns.length > 0 ? currentTable[Columns[0]].length : 0;
+                 currentTable[new_column_added] = Array(rowCount).fill("");
 
-                for (let i = 0; i < this.datas.tables[this.currentNameTable][Columns[0]].length; i++) {
-                   this.datas.tables[this.currentNameTable][new_column_added].push("");
-                }
-
-                 this.displayTable(this.currentNameTable);
-                pywebview.api.save_as(this.datas);
+                this.displayTable(this.currentNameTable);
+                await this.core.save();
                 input.value = "";
                 document.getElementById("modal_add_column").style.display = "none";
                 document.getElementById("modal_table_utils").style.display = "none";
             }
         });
-        document.querySelector("#modal_delete_column .delete_column").addEventListener("click", (e) => {
+        document.querySelector("#modal_delete_column .delete_column").addEventListener("click", async (e) => {
             e.stopPropagation();
 
             const input = document.getElementById("name_column_delete");
             const new_column_delete = input.value.trim();
 
-            const Columns = Object.keys(this.datas.tables[this.currentNameTable])
+            const Columns = Object.keys(this.core.payload.tables[this.currentNameTable])
             const nbColumns = Columns.length
 
             if (new_column_delete && this.currentNameTable !== NaN) {
-                let find=false;
-                for(let i=0;i<nbColumns;i++){
-                         if(Columns[i] === new_column_delete){
-                            find = true;
-                            break;
-                         }
-                }
+                if (!Columns.includes(new_column_delete)) {
+                      alert("Cette colonne n'existe pas !");
+                      return;
+                 }
 
-                if(find === false){
-                 document.getElementById("modal_delete_column").style.display = "none";
-                 return
-                }
-                delete this.datas.tables[this.currentNameTable][new_column_delete];
+                delete this.core.payload.tables[this.currentNameTable][new_column_delete];
 
                 this.displayTable(this.currentNameTable);
-                pywebview.api.save_as(this.datas);
+                await this.core.save();
                 input.value = "";
                 document.getElementById("modal_delete_column").style.display = "none";
                 document.getElementById("modal_table_utils").style.display = "none";
@@ -427,6 +468,21 @@ document.getElementById("name_table_to_delete").addEventListener("keypress", asy
     }
 });
 
+document.querySelector(".modal_add_column .modal_content .cancel").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    document.getElementById("modal_add_column").style.display = "none";
+});
+
+document.querySelector(".modal_delete_column .modal_content .cancel").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    document.getElementById("modal_delete_column").style.display="none";
+});
+
+document.querySelector(".modal_table_utils .modal-content .func_utils .cancel").addEventListener("click", (e)=>{
+    e.stopPropagation();
+    document.getElementById("modal_table_utils").style.display="none";
+});
+
 document.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
         const deleteModal = document.getElementById("modal-delete-table");
@@ -436,6 +492,22 @@ document.addEventListener("keydown", (e) => {
         }
     }
 });
+
+document.addEventListener("keydown", (e)=>{
+
+    if (e.ctrlKey && (e.key === 't' || e.key === 'T') ){
+        e.preventDefault();
+        this.SaveCurrentTable();
+    }
+});
+
+document.addEventListener("keydown", async (e)=>{
+
+    if(e.ctrlKey && (e.key === "s" || e.key === "S")){
+        e.preventDefault();
+        await pywebview.api.save_as(this.datas)
+    }
+})
     }
 
     OpenModalAddColumn() {
@@ -446,7 +518,7 @@ document.addEventListener("keydown", (e) => {
     }
 
     SaveChanges() {
-    if (!this.currentNameTable || !this.datas.tables[this.currentNameTable]) {
+    if (!this.currentNameTable || !this.core.payload.tables[this.currentNameTable]) {
         alert("Aucune table sélectionnée !");
         return;
     }
@@ -483,7 +555,7 @@ document.addEventListener("keydown", (e) => {
         }
     }
 
-    this.datas.tables[this.currentNameTable] = changedDatas;
+    this.core.payload.tables[this.currentNameTable] = changedDatas;
 
     this.displayTable(this.currentNameTable);
 
@@ -494,6 +566,47 @@ document.addEventListener("keydown", (e) => {
     console.log("Changements sauvegardés avec succès !", changedDatas);
 }
 
+async SaveCurrentTable() {
+    if (!this.currentNameTable) {
+        alert("Aucune table sélectionnée !");
+        return;
+    }
+
+    const changedDatas = {};
+    const divValues = document.querySelectorAll(".data-table .grid-table table th");
+    const columnsNames = Array.from(divValues).map(div => div.textContent.trim()).filter(name => name);
+
+    if (columnsNames.length === 0) {
+        alert("Aucun nom de colonne valide !");
+        return;
+    }
+    for (let name of columnsNames) {
+        changedDatas[name] = [];
+    }
+
+    const editableCells = document.querySelectorAll(".data-table .grid-table table td[contenteditable='true']");
+
+    const nbColumns = columnsNames.length;
+
+    if (editableCells.length % nbColumns !== 0) {
+        console.error("Nombre de cellules incohérent:", editableCells.length, "colonnes:", nbColumns);
+        alert("Erreur de structure du tableau!");
+        return;
+    }
+
+    const nbRows = editableCells.length / nbColumns;
+
+    for (let rowIndex = 0; rowIndex < nbRows; rowIndex++) {
+        for (let colIndex = 0; colIndex < nbColumns; colIndex++) {
+            const cellIndex = rowIndex * nbColumns + colIndex;
+            const cellValue = editableCells[cellIndex]?.textContent?.trim() || "";
+            changedDatas[columnsNames[colIndex]].push(cellValue);
+        }
+    }
+
+    this.core.payload.tables[this.currentNameTable] = changedDatas;
+    await this.core.save();
+}
     switchTabOption(id){
         document.querySelectorAll(".table_added").forEach(tab=>{
             tab.classList.remove("active");
@@ -515,7 +628,7 @@ document.addEventListener("keydown", (e) => {
 
     async CreateNewTable() {
 
-    if (!this.name_session_selected) {
+    if (!this.core.sessionName) {
         alert("Aucune session sélectionnée !");
         return;
     }
@@ -552,7 +665,7 @@ document.addEventListener("keydown", (e) => {
         return;
     }
 
-    if (this.datas.tables[tableName]) {
+    if (this.core.payload.tables[tableName]) {
         alert(`La table "${tableName}" existe déjà !`);
         return;
     }
@@ -563,9 +676,9 @@ document.addEventListener("keydown", (e) => {
         tableDatas[name_column] = Array(initialRows).fill("");
     }
 
-    this.datas.tables[tableName] = tableDatas;
+    this.core.payload.tables[tableName] = tableDatas;
 
-    await pywebview.api.save_as(this.datas);
+    await this.core.save();
 
     this.currentNameTable = tableName;
     this.displayTable(tableName);
@@ -580,7 +693,7 @@ document.addEventListener("keydown", (e) => {
 
 async DeleteTable() {
 
-    if (!this.name_session_selected) {
+    if (!this.core.sessionName) {
         alert("Aucune session sélectionnée !");
         return;
     }
@@ -593,7 +706,7 @@ async DeleteTable() {
         return;
     }
 
-    if (!this.datas.tables || !this.datas.tables[tableName]) {
+    if (!this.core.payload.tables || !this.core.payload.tables[tableName]) {
         alert(`La table "${tableName}" n'existe pas !`);
         return;
     }
@@ -606,12 +719,12 @@ async DeleteTable() {
     }
 
     try {
-        delete this.datas.tables[tableName];
-        await pywebview.api.save_as(this.datas);
+        delete this.core.payload.tables[tableName];
+        await this.core.save();
 
         this.displayListTable();
 
-        const remainingTables = Object.keys(this.datas.tables);
+        const remainingTables = Object.keys(this.core.payload.tables);
         if (remainingTables.length > 0) {
 
             this.currentNameTable = remainingTables[0];
@@ -629,18 +742,51 @@ async DeleteTable() {
             modalUtils.style.display = "none";
         }
 
-        console.log(`Table "${tableName}" supprimée avec succès !`);
-
         alert(`Table "${tableName}" supprimée avec succès !`);
 
     } catch (error) {
-        console.error("Erreur lors de la suppression de la table :", error);
         alert("Une erreur est survenue lors de la suppression de la table.");
+    }
+}
+
+async ImportTable() {
+    const imports_table = await pywebview.api.import_table();
+
+    if (imports_table && imports_table.length === 2) {
+
+        this.core.payload.tables[imports_table[0]] = imports_table[1];
+
+        await this.core.save();
+        const name_table = imports_table[0];
+        this.currentNameTable = name_table;
+        this.displayTable(name_table);
+        this.displayListTable();
+
+
+        if (window.analysisManager) {
+            window.analysisManager.displayListAnalysis();
+
+            const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
+            if (firstAnalysis) window.analysisManager.displayAnalysis(firstAnalysis);
+        }
+
+        document.getElementById("modal-add-table").style.display = "none";
+    } else {
+        alert("Erreur d'import de la table.");
     }
 }
 
 }
 
+
+
 const dataManager = new DataTableManager();
 dataManager.init();
 dataManager.setupEventListeners();
+
+window.dataManager = dataManager
+
+
+
+
+

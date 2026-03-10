@@ -3,6 +3,7 @@ import os
 import pickle
 import sys
 import zipfile
+import pandas as pd
 from pathlib import PurePosixPath
 import json
 from typing import Dict,Any
@@ -32,6 +33,7 @@ class ManagerApp:
                     folder = path.parts[0]
 
                     filename = path.name
+                    filename = filename.split(".")[0]
 
                     with z.open(info) as f:
                          content = f.read()
@@ -55,10 +57,10 @@ class ManagerApp:
                 with zipfile.ZipFile(self.current_file, "w", compression=zipfile.ZIP_DEFLATED) as z:
 
                     for name_table, content_table in data["tables"].items():
-                        z.writestr(f"tables/{name_table}", json.dumps(content_table))
+                        z.writestr(f"tables/{name_table}.json", json.dumps(content_table))
 
                     for name_analysis, content_analysis in data["analysis"].items():
-                        z.writestr(f"analysis/{name_analysis}", content_analysis)
+                        z.writestr(f"analysis/{name_analysis}.txt", content_analysis)
                 return {"success":True}
             except Exception as e:
                 return {"error":str(e)}
@@ -75,12 +77,14 @@ class ManagerApp:
             self.current_file = file_path
             datas = {
                 "tables":{
-                    "demo.json":{
-                        "first variable":[1,1,1],
-                        "second variable":[1,1,1]
+                    "demo":{
+                        "first_variable":[1,1,1],
+                        "second_variable":[1,1,1]
                     }
                 },
-                "analysis":{}
+                "analysis":{
+                    "demo":"#Analysis"
+                }
             }
             result =self.save_as(datas)
             return os.path.basename(self.current_file), datas
@@ -97,7 +101,31 @@ class ManagerApp:
         if file_paths:
             self.current_file = file_paths[0]
             return os.path.basename(self.current_file), self.initial_data()[1]
-        return None,None
+        return None,
+
+    def import_table(self):
+        window = webview.active_window()
+        file_types=('Fichier csv(*.csv)','Fichier xlsx(*.xlsx)','Fichier xls(*.xls)')
+        file_paths = window.create_file_dialog(
+            webview.OPEN_DIALOG,
+            allow_multiple=False,
+            file_types=file_types
+        )
+
+        if file_paths:
+            file_table = file_paths[0]
+
+            if file_table.endswith(".csv"):
+                df = pd.read_csv(file_table)
+            elif file_table.endswith('.xlsx','.xls'):
+                df = pd.read_excel(file_table, sheet_name=0)
+
+            resultat = df.to_dict(orient='list')
+            file_table = os.path.basename(file_table)
+
+            return file_table.split(".")[0], resultat
+
+
 
 
 api = ManagerApp()
