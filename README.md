@@ -44,16 +44,11 @@ What makes Lista State truly special is its **origin**. It stands as a proud tes
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/frasasu/lista-state.git
+   git clone https://github.com/frasasu/lista_state.git
    cd lista-state
    ```
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-3. **Run the application**
+2. **Run the application**
    ```bash
    python main.py
    ```
