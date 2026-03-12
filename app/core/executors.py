@@ -1,15 +1,12 @@
-# evaluators.py
+
 import pandas as pd
 import numpy as np
 import math
-import json
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 import traceback
-import copy
 
 
-# Fonction de conversion pour les types numpy/pandas
 def convert_to_json_serializable(obj):
     """Convertit les types numpy/pandas en types Python standards pour JSON"""
     if obj is None:
@@ -41,15 +38,14 @@ class Evaluator:
 
     def __init__(self, initial_datas: Dict[str, Any] = None):
         self.datas = initial_datas or {"tables": {}, "analysis": {}}
-        self.current_tables = {} 
-        self.analysis_results: Dict[str, Any] = {}  
-        self.variables: Dict[str, Any] = {}  
-        self.output_messages: List[Dict[str, Any]] = []  
-        self.current_line = 0  # Pour le débogage
-        
-        # Convertir les tables initiales en DataFrames avec conversion automatique
+        self.current_tables = {}
+        self.analysis_results: Dict[str, Any] = {}
+        self.variables: Dict[str, Any] = {}
+        self.output_messages: List[Dict[str, Any]] = []
+        self.current_line = 0
+
         self._refresh_pandas_tables()
-    
+
     def _convert_dict_to_json_serializable(self, d: Any) -> Any:
         """Convertit récursivement un dictionnaire pour le rendre JSON serializable"""
         if isinstance(d, dict):
@@ -74,98 +70,96 @@ class Evaluator:
             ]
         else:
             return convert_to_json_serializable(d)
-    
+
     def _convert_to_numeric(self, series: pd.Series) -> pd.Series:
         """Convertit une série en numérique si possible"""
         if series.dtype == 'object':
             try:
-                # Essayer de convertir en nombres
+
                 converted = pd.to_numeric(series, errors='coerce')
-                # Si au moins une valeur a été convertie, retourner la version convertie
+
                 if not converted.isna().all():
                     return converted
             except:
                 pass
         return series
-    
+
     def _convert_dataframe_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         """Convertit automatiquement les colonnes d'un DataFrame en types numériques si possible"""
         new_df = df.copy()
         for col in new_df.columns:
             new_df[col] = self._convert_to_numeric(new_df[col])
         return new_df
-    
+
     def _refresh_pandas_tables(self):
         """Convertit les tables du dictionnaire en DataFrames pandas avec conversion automatique"""
         for table_name, table_data in self.datas["tables"].items():
             df = pd.DataFrame(table_data)
-            # Convertir automatiquement les colonnes numériques
+
             df = self._convert_dataframe_columns(df)
             self.current_tables[table_name] = df
-    
+
     def _update_dict_tables(self):
         """Met à jour le dictionnaire original à partir des DataFrames"""
         for table_name, df in self.current_tables.items():
-            # Convertir les NaN en None pour JSON
+
             dict_data = df.replace({np.nan: None}).to_dict(orient='list')
-            # Convertir les types numpy en types Python
+
             dict_data = self._convert_dict_to_json_serializable(dict_data)
             self.datas["tables"][table_name] = dict_data
-    
+
     def add_output(self, message_type: str, content: Any, line: int = 0):
         """Ajoute un message de sortie pour l'interface avec conversion JSON"""
-        # Convertir le contenu pour le rendre JSON serializable
+
         if isinstance(content, dict):
             content = self._convert_dict_to_json_serializable(content)
         elif isinstance(content, list):
             content = [self._convert_dict_to_json_serializable(item) if isinstance(item, dict) else convert_to_json_serializable(item) for item in content]
         else:
             content = convert_to_json_serializable(content)
-        
+
         self.output_messages.append({
             "type": message_type,
             "content": content,
             "line": line or self.current_line,
             "timestamp": datetime.now().isoformat()
         })
-    
+
     def evaluate(self, ast: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
         Point d'entrée principal : évalue un programme complet
         Retourne la liste des messages de sortie
         """
         self.output_messages = []
-        
+
         try:
             if ast.get("type") != "dsl_program":
                 self.add_output("error", "AST invalide: type de programme manquant")
                 return self.output_messages
-            
+
             for command in ast.get("commands", []):
                 self.current_line = command.get("line", 0)
                 self.evaluate_command(command)
-                
-            # Sauvegarder les résultats dans le dictionnaire original
+
             self._update_dict_tables()
-            
-            # Convertir les résultats d'analyse
+
             converted_analysis = {}
             for key, value in self.analysis_results.items():
                 converted_analysis[key] = self._convert_dict_to_json_serializable(value)
             self.datas["analysis"].update(converted_analysis)
-            
+
         except Exception as e:
             self.add_output("error", {
                 "message": str(e),
                 "traceback": traceback.format_exc()
             })
-        
+
         return self.output_messages
-    
+
     def evaluate_command(self, command: Dict[str, Any]):
         """Évalue une commande individuelle"""
         cmd_type = command.get("type")
-        
+
         if cmd_type == "load":
             self.evaluate_load(command)
         elif cmd_type == "transform":
@@ -178,29 +172,26 @@ class Evaluator:
             self.evaluate_for(command)
         else:
             self.add_output("error", f"Type de commande inconnu: {cmd_type}", self.current_line)
-    
+
     def evaluate_load(self, command: Dict[str, Any]):
         """Évalue une commande LOAD - charge une table depuis le dictionnaire"""
         props = command.get("properties", {})
         name = props.get("name")
         alias = props.get("alias", name)
-        
+
         self.add_output("info", f"Chargement de la table '{name}' -> '{alias}'", self.current_line)
-        
-        # Vérifier si la table existe dans le dictionnaire
+
         if name in self.datas["tables"]:
-            # Charger la table dans current_tables
+
             table_data = self.datas["tables"][name]
             df = pd.DataFrame(table_data)
-            # Convertir automatiquement les types
+
             df = self._convert_dataframe_columns(df)
             self.current_tables[alias] = df
-            
-            # Préparer le preview avec conversion
+
             preview = df.head(10).replace({np.nan: None}).to_dict(orient='records')
             preview = self._convert_dict_to_json_serializable(preview)
-            
-            # Ajouter aux sorties pour affichage
+
             self.add_output("table", {
                 "name": alias,
                 "source": name,
@@ -211,33 +202,31 @@ class Evaluator:
                 "row_count": len(df),
                 "col_count": len(df.columns)
             })
-            
+
             self.add_output("success", f"Table '{alias}' chargée avec succès ({len(df)} lignes)", self.current_line)
         else:
             self.add_output("error", f"Table '{name}' introuvable dans les données", self.current_line)
-    
+
     def evaluate_transform(self, command: Dict[str, Any]):
         """Évalue une commande TRANSFORM"""
         props = command.get("properties", {})
         source_name = props.get("name")
         alias = props.get("alias", f"{source_name}_transformed")
         contents = command.get("contents", [])
-        
+
         self.add_output("info", f"Transformation de '{source_name}' -> '{alias}'", self.current_line)
-        
-        # Vérifier que la source existe
+
         if source_name not in self.current_tables:
             self.add_output("error", f"Table source '{source_name}' introuvable", self.current_line)
             return
-        
+
         df = self.current_tables[source_name].copy()
         operations_applied = []
-        
-        # Appliquer chaque opération dans l'ordre
+
         for operation in contents:
             op_type = operation.get("type")
             operations_applied.append(op_type)
-            
+
             if op_type == "select":
                 df = self.apply_select(df, operation)
             elif op_type == "drop":
@@ -254,15 +243,12 @@ class Evaluator:
                 df = self.apply_join(df, operation)
             elif op_type == "having":
                 df = self.apply_having(df, operation)
-        
-        # Sauvegarder le résultat
+
         self.current_tables[alias] = df
-        
-        # Préparer le preview avec conversion
+
         preview = df.head(10).replace({np.nan: None}).to_dict(orient='records')
         preview = self._convert_dict_to_json_serializable(preview)
-        
-        # Ajouter la table aux résultats pour affichage
+
         self.add_output("table", {
             "name": alias,
             "source": source_name,
@@ -274,15 +260,15 @@ class Evaluator:
             "col_count": len(df.columns),
             "operations": operations_applied
         })
-        
+
         self.add_output("success", f"Table '{alias}' créée avec succès ({len(df)} lignes)", self.current_line)
-    
+
     def apply_select(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération SELECT"""
         args = operation.get("args", [])
         selected_cols = []
         new_df = df.copy()
-        
+
         for arg in args:
             if "name" in arg:
                 col_name = arg["name"]
@@ -296,16 +282,16 @@ class Evaluator:
                 else:
                     self.add_output("error", f"Colonne '{col_name}' introuvable", self.current_line)
             elif "expression" in arg:
-                # Évaluer l'expression
+
                 expr_result = self.evaluate_expression(arg["expression"], new_df)
                 alias = arg.get("alias", f"col_{len(selected_cols)}")
                 new_df[alias] = expr_result
                 selected_cols.append(alias)
-        
+
         if selected_cols:
             return new_df[selected_cols]
         return new_df
-    
+
     def apply_drop(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération DROP"""
         args = operation.get("args", [])
@@ -313,50 +299,50 @@ class Evaluator:
         if cols_to_drop:
             return df.drop(columns=cols_to_drop)
         return df
-    
+
     def apply_filter(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération FILTER"""
         condition = operation.get("condition")
         mask = self.evaluate_filter_condition(condition, df)
         return df[mask]
-    
+
     def apply_create_feature(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération CREATE_FEATURE"""
         features = operation.get("features", [])
         new_df = df.copy()
-        
+
         for feature in features:
             name = feature.get("name")
             expr = feature.get("expression")
-            
+
             result = self.evaluate_expression(expr, new_df)
             new_df[name] = result
-            
+
             self.add_output("info", f"Feature créée: {name}", self.current_line)
-        
+
         return new_df
-    
+
     def apply_group_by(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération GROUP BY (prépare pour AGG)"""
         columns = operation.get("columns", [])
-        # On retourne le DataFrame avec l'info de groupby stockée temporairement
+
         df.attrs['group_by_columns'] = columns
         return df
-    
+
     def apply_agg(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération AGG (agrégation)"""
         aggregations = operation.get("aggregations", [])
         group_by_cols = df.attrs.get('group_by_columns', [])
-        
+
         if not group_by_cols:
-            # Si pas de GROUP BY, faire une agrégation globale
+
             result_dict = {}
             for agg_item in aggregations:
                 name = agg_item.get("name")
                 func_call = agg_item.get("function", {})
                 func_name = func_call.get("name")
                 args = func_call.get("arguments", [])
-                
+
                 if args and len(args) > 0:
                     col_name = self.extract_column_name(args[0])
                     if col_name and col_name in df.columns:
@@ -371,44 +357,42 @@ class Evaluator:
                             result_dict[name] = col_data.min(skipna=True)
                         elif func_name == "MAX":
                             result_dict[name] = col_data.max(skipna=True)
-            
+
             return pd.DataFrame([result_dict])
-        
-        # Agrégation par groupe
+
         agg_dict = {}
         for agg_item in aggregations:
             name = agg_item.get("name")
             func_call = agg_item.get("function", {})
             func_name = func_call.get("name")
             args = func_call.get("arguments", [])
-            
+
             if args and len(args) > 0:
                 col_name = self.extract_column_name(args[0])
                 if col_name and col_name in df.columns:
                     agg_dict[name] = pd.NamedAgg(column=col_name, aggfunc=func_name.lower())
-        
+
         if agg_dict and group_by_cols:
             result = df.groupby(group_by_cols).agg(**agg_dict).reset_index()
             return result
-        
+
         return df
-    
+
     def apply_join(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération JOIN"""
         table_name = operation.get("table")
         on_condition = operation.get("on")
         join_type = operation.get("type", "inner")
         suffix = operation.get("suffix", "_right")
-        
+
         if table_name not in self.current_tables:
             self.add_output("error", f"Table à joindre '{table_name}' introuvable", self.current_line)
             return df
-        
+
         right_df = self.current_tables[table_name]
-        
-        # Parser la condition ON
+
         left_col, right_col = self.parse_join_condition(on_condition)
-        
+
         if left_col and right_col:
             try:
                 result = pd.merge(
@@ -420,99 +404,95 @@ class Evaluator:
                 return result
             except Exception as e:
                 self.add_output("error", f"Erreur lors du JOIN: {str(e)}", self.current_line)
-        
+
         return df
-    
+
     def apply_having(self, df: pd.DataFrame, operation: Dict[str, Any]) -> pd.DataFrame:
         """Applique une opération HAVING (filtre après groupement)"""
         condition = operation.get("condition")
         mask = self.evaluate_filter_condition(condition, df)
         return df[mask]
-    
+
     def evaluate_analyze(self, command: Dict[str, Any]):
         """Évalue une commande ANALYZE"""
         target = command.get("target")
         operations = command.get("operations", [])
         options = command.get("options", {})
-        
+
         self.add_output("info", f"Analyse de '{target}'...", self.current_line)
-        
+
         if target not in self.current_tables:
             self.add_output("error", f"Table cible '{target}' introuvable", self.current_line)
             return
-        
+
         df = self.current_tables[target]
         results = {}
-        
+
         for op in operations:
             if isinstance(op, dict) and "name" in op:
                 op_name = op.get("name")
                 op_args = op.get("arguments", [])
                 variable = op.get("variable")
-                
+
                 result = self.evaluate_stat_function(op_name, op_args, df)
-                
+
                 if variable:
                     results[variable] = result
                     self.variables[variable] = result
                 else:
                     results[op_name] = result
-        
-        # Sauvegarder les résultats
+
         analysis_name = f"analysis_{len(self.analysis_results)}"
         self.analysis_results[analysis_name] = results
-        
-        # Ajouter aux sorties
+
         self.add_output("analysis", {
             "name": analysis_name,
             "target": target,
             "results": results,
             "options": options
         })
-        
+
         self.add_output("success", f"Analyse '{analysis_name}' terminée", self.current_line)
-    
+
     def evaluate_if(self, command: Dict[str, Any]):
         """Évalue une commande IF/ELIF/ELSE"""
         branches = command.get("branches", [])
         else_branch = command.get("else", [])
-        
+
         for branch in branches:
             condition = branch.get("condition")
             body = branch.get("body", [])
-            
-            # Évaluer la condition
+
             if self.evaluate_boolean_condition(condition):
                 self.add_output("info", "Condition IF vraie, exécution du bloc", self.current_line)
                 for cmd in body:
                     self.evaluate_command(cmd)
                 return
-        
-        # Si aucune branche IF/ELIF n'est vraie et que ELSE existe
+
         if else_branch:
             self.add_output("info", "Exécution du bloc ELSE", self.current_line)
             for cmd in else_branch:
                 self.evaluate_command(cmd)
-    
+
     def evaluate_for(self, command: Dict[str, Any]):
         """Évalue une commande FOR"""
         variable = command.get("variable")
         collection_name = command.get("collection")
         body = command.get("commands", [])
-        
+
         if collection_name in self.current_tables:
             collection = self.current_tables[collection_name]
-            # Itérer sur les lignes
+
             for idx, (_, row) in enumerate(collection.iterrows()):
-                # Créer une variable temporaire avec la ligne courante
+
                 row_dict = row.replace({np.nan: None}).to_dict()
                 row_dict = self._convert_dict_to_json_serializable(row_dict)
                 self.variables[variable] = row_dict
                 self.add_output("info", f"Itération {idx+1}: {variable} = {self.variables[variable]}", self.current_line)
-                
+
                 for cmd in body:
                     self.evaluate_command(cmd)
-        
+
         elif collection_name in self.variables:
             collection = self.variables[collection_name]
             if isinstance(collection, list):
@@ -521,36 +501,35 @@ class Evaluator:
                     self.add_output("info", f"Itération {idx+1}: {variable} = {item}", self.current_line)
                     for cmd in body:
                         self.evaluate_command(cmd)
-    
+
     def evaluate_filter_condition(self, condition: Any, df: pd.DataFrame) -> pd.Series:
         """Évalue une condition de filtre et retourne un masque booléen"""
         if condition is None:
             return pd.Series([True] * len(df))
-        
+
         if isinstance(condition, dict):
             cond_type = condition.get("type")
-            
+
             if cond_type == "binary_operation":
                 left = self.evaluate_filter_condition(condition.get("left"), df)
                 right = self.evaluate_filter_condition(condition.get("right"), df)
                 operator = condition.get("operator")
-                
+
                 if operator in ["AND", "&&"]:
                     return left & right
                 elif operator in ["OR", "||"]:
                     return left | right
-            
+
             elif cond_type == "comparison":
                 left = self.evaluate_expression(condition.get("left"), df)
                 right = self.evaluate_expression(condition.get("right"), df)
                 operator = condition.get("operator")
-                
-                # Convertir les types si nécessaire pour la comparaison
+
                 if isinstance(left, pd.Series) and left.dtype == 'object':
                     left = self._convert_to_numeric(left)
                 if isinstance(right, pd.Series) and right.dtype == 'object':
                     right = self._convert_to_numeric(right)
-                
+
                 try:
                     if operator == ">":
                         return left > right
@@ -567,34 +546,32 @@ class Evaluator:
                 except Exception as e:
                     self.add_output("error", f"Erreur de comparaison: {e}", self.current_line)
                     return pd.Series([False] * len(df))
-            
+
             elif cond_type == "between":
                 left = self.evaluate_expression(condition.get("left"), df)
                 lower = self.evaluate_expression(condition.get("lower"), df)
                 upper = self.evaluate_expression(condition.get("upper"), df)
-                
-                # Convertir les types
+
                 left = self._convert_to_numeric(left) if isinstance(left, pd.Series) else left
                 lower = self._convert_to_numeric(lower) if isinstance(lower, pd.Series) else lower
                 upper = self._convert_to_numeric(upper) if isinstance(upper, pd.Series) else upper
-                
+
                 return (left >= lower) & (left <= upper)
-            
+
             elif cond_type == "in":
                 left = self.evaluate_expression(condition.get("left"), df)
                 values = condition.get("values", [])
                 evaluated_values = [self.evaluate_expression(v, df) for v in values]
-                
-                # Créer un masque booléen
+
                 if isinstance(left, pd.Series):
                     return left.isin(evaluated_values)
                 else:
                     return pd.Series([left in evaluated_values] * len(df))
-            
+
             elif cond_type == "not":
                 expr = self.evaluate_filter_condition(condition.get("expression"), df)
                 return ~expr
-            
+
             elif cond_type == "column":
                 col_name = condition.get("value")
                 if col_name in df.columns:
@@ -602,37 +579,37 @@ class Evaluator:
                     if col.dtype == 'object':
                         col = self._convert_to_numeric(col)
                     return col.astype(bool)
-            
+
             elif cond_type == "boolean":
                 return pd.Series([condition.get("value", True)] * len(df))
-        
+
         return pd.Series([True] * len(df))
-    
+
     def evaluate_expression(self, expr: Any, df: pd.DataFrame = None) -> Any:
         """Évalue une expression mathématique avec conversion automatique des types"""
         if expr is None:
             return None
-        
+
         if isinstance(expr, dict):
             expr_type = expr.get("type")
-            
+
             if expr_type == "column":
                 col_name = expr.get("value")
                 if df is not None and col_name in df.columns:
                     col = df[col_name]
-                    # Convertir automatiquement les types numériques
+
                     return self._convert_to_numeric(col)
                 return col_name
-            
+
             elif expr_type == "number":
                 return expr.get("value", 0)
-            
+
             elif expr_type == "float":
                 return float(expr.get("value", 0.0))
-            
+
             elif expr_type == "string":
                 val = expr.get("value", "")
-                # Essayer de convertir les chaînes numériques
+
                 try:
                     if val.replace('.', '').replace('-', '').replace('e', '').replace('E', '').isdigit():
                         if '.' in val or 'e' in val or 'E' in val:
@@ -642,19 +619,18 @@ class Evaluator:
                 except:
                     pass
                 return val
-            
+
             elif expr_type == "boolean":
                 return expr.get("value", False)
-            
+
             elif expr_type == "null":
                 return None
-            
+
             elif expr_type == "binary_operation":
                 left = self.evaluate_expression(expr.get("left"), df)
                 right = self.evaluate_expression(expr.get("right"), df)
                 operator = expr.get("operator")
-                
-                # Convertir les scalaires si nécessaire
+
                 if isinstance(left, str) and not isinstance(right, str):
                     try:
                         left = float(left) if '.' in left else int(left)
@@ -665,8 +641,7 @@ class Evaluator:
                         right = float(right) if '.' in right else int(right)
                     except:
                         pass
-                
-                # Gérer les opérations sur des séries ou scalaires
+
                 try:
                     if operator == "+":
                         return left + right
@@ -675,7 +650,7 @@ class Evaluator:
                     elif operator == "*":
                         return left * right
                     elif operator == "/":
-                        # Éviter la division par zéro
+
                         if isinstance(right, pd.Series):
                             return left / right.replace(0, np.nan)
                         elif isinstance(left, pd.Series):
@@ -689,31 +664,29 @@ class Evaluator:
                 except Exception as e:
                     self.add_output("error", f"Erreur dans l'expression: {e}", self.current_line)
                     return None
-            
+
             elif expr_type == "function_call":
                 return self.evaluate_function(expr, df)
-            
+
             elif expr_type == "case":
                 return self.evaluate_case(expr, df)
-        
+
         return expr
-    
+
     def evaluate_function(self, func_call: Dict[str, Any], df: pd.DataFrame = None) -> Any:
         """Évalue un appel de fonction avec conversion automatique"""
         name = func_call.get("name")
         args = func_call.get("arguments", [])
         over = func_call.get("over")
-        
-        # Évaluer les arguments avec conversion
+
         evaluated_args = []
         for arg in args:
             val = self.evaluate_expression(arg, df)
-            # Convertir les séries de chaînes en nombres si possible
+
             if isinstance(val, pd.Series) and val.dtype == 'object':
                 val = self._convert_to_numeric(val)
             evaluated_args.append(val)
-        
-        # Fonctions d'agrégation
+
         if name == "SUM":
             if len(evaluated_args) > 0:
                 col = evaluated_args[0]
@@ -787,8 +760,7 @@ class Evaluator:
                 if isinstance(col1, pd.Series) and isinstance(col2, pd.Series):
                     return col1.corr(col2)
                 return np.corrcoef(col1, col2)[0, 1] if len(col1) > 1 and len(col2) > 1 else 0
-        
-        # Fonctions mathématiques
+
         elif name == "LOG":
             if len(evaluated_args) > 0:
                 val = evaluated_args[0]
@@ -830,20 +802,19 @@ class Evaluator:
                 elif hasattr(val, '__iter__') and not isinstance(val, str):
                     return np.round(val, decimals)
                 return round(val, decimals)
-        
-        # Fonctions de fenêtrage (simplifiées)
+
         if over:
             return self.evaluate_window_function(name, evaluated_args, over, df)
-        
+
         return evaluated_args[0] if evaluated_args else None
-    
+
     def evaluate_window_function(self, name: str, args: List, over: Dict, df: pd.DataFrame) -> Any:
         """Évalue une fonction de fenêtrage avec OVER (version simplifiée)"""
         if df is None or len(df) == 0:
             return None
-        
+
         partition_by = over.get("partition_by", [])
-        
+
         if name == "RANK":
             result = pd.Series(1, index=df.index)
             if partition_by and all(col in df.columns for col in partition_by):
@@ -856,61 +827,57 @@ class Evaluator:
                 for _, group in df.groupby(partition_by):
                     result.loc[group.index] = range(1, len(group) + 1)
             return result
-        
+
         return pd.Series([None] * len(df), index=df.index)
-    
+
     def evaluate_case(self, case_expr: Dict[str, Any], df: pd.DataFrame = None) -> Any:
         """Évalue une expression CASE WHEN"""
         when_then = case_expr.get("when_then", [])
         else_val = case_expr.get("else")
-        
+
         if df is not None:
-            # Évaluation par ligne
+
             result = pd.Series([None] * len(df), index=df.index)
-            
+
             for wt in when_then:
                 condition = self.evaluate_filter_condition(wt.get("when"), df)
                 then_val = self.evaluate_expression(wt.get("then"), df)
-                
-                # Appliquer la valeur aux lignes où la condition est vraie
+
                 if isinstance(then_val, pd.Series):
                     result[condition] = then_val[condition]
                 else:
                     result[condition] = then_val
-            
-            # Appliquer ELSE
+
             if else_val is not None:
                 else_result = self.evaluate_expression(else_val, df)
                 if isinstance(else_result, pd.Series):
                     result[result.isna()] = else_result[result.isna()]
                 else:
                     result[result.isna()] = else_result
-            
+
             return result
         else:
-            # Évaluation scalaire
+
             for wt in when_then:
                 condition = self.evaluate_boolean_condition(wt.get("when"))
                 if condition:
                     return self.evaluate_expression(wt.get("then"))
             return self.evaluate_expression(else_val) if else_val else None
-    
+
     def evaluate_boolean_condition(self, condition: Any) -> bool:
         """Évalue une condition booléenne simple"""
         if condition is None:
             return True
-        
+
         if isinstance(condition, dict):
             if condition.get("type") == "comparison":
                 left_val = condition.get("left")
                 right_val = condition.get("right")
                 op = condition.get("operator")
-                
-                # Extraire les valeurs
+
                 left = left_val.get("value") if isinstance(left_val, dict) else left_val
                 right = right_val.get("value") if isinstance(right_val, dict) else right_val
-                
-                # Convertir les chaînes en nombres si possible
+
                 if isinstance(left, str):
                     try:
                         left = float(left) if '.' in left else int(left)
@@ -921,7 +888,7 @@ class Evaluator:
                         right = float(right) if '.' in right else int(right)
                     except:
                         pass
-                
+
                 try:
                     if op == ">":
                         return left > right
@@ -937,35 +904,35 @@ class Evaluator:
                         return left != right
                 except:
                     return False
-            
+
             elif condition.get("type") == "binary_operation":
                 left = self.evaluate_boolean_condition(condition.get("left"))
                 right = self.evaluate_boolean_condition(condition.get("right"))
                 op = condition.get("operator")
-                
+
                 if op in ["AND", "&&"]:
                     return left and right
                 elif op in ["OR", "||"]:
                     return left or right
-            
+
             elif condition.get("type") == "not":
                 return not self.evaluate_boolean_condition(condition.get("expression"))
-            
+
             elif condition.get("type") == "boolean":
                 return condition.get("value", False)
-        
+
         return bool(condition)
-    
+
     def evaluate_stat_function(self, name: str, args: List, df: pd.DataFrame) -> Any:
         """Évalue une fonction statistique pour ANALYZE avec conversion automatique"""
         evaluated_args = []
         for arg in args:
             val = self.evaluate_expression(arg, df)
-            # Convertir en numérique si c'est une série
+
             if isinstance(val, pd.Series) and val.dtype == 'object':
                 val = self._convert_to_numeric(val)
             evaluated_args.append(val)
-        
+
         if name == "COUNT":
             return len(df)
         elif name == "SUM":
@@ -1007,9 +974,9 @@ class Evaluator:
                 if isinstance(col1, pd.Series) and isinstance(col2, pd.Series):
                     return col1.corr(col2)
                 return None
-        
+
         return None
-    
+
     def extract_column_name(self, arg: Any) -> Optional[str]:
         """Extrait le nom de colonne d'un argument"""
         if isinstance(arg, dict):
@@ -1020,44 +987,43 @@ class Evaluator:
         elif isinstance(arg, str):
             return arg
         return None
-    
+
     def parse_join_condition(self, condition: Any) -> tuple:
         """Parse une condition ON pour JOIN"""
         if isinstance(condition, dict) and condition.get("type") == "comparison":
             left = condition.get("left")
             right = condition.get("right")
-            
+
             left_col = self.extract_column_name(left)
             right_col = self.extract_column_name(right)
-            
+
             return left_col, right_col
-        
-        # Condition simple comme "id"
+
         if isinstance(condition, str):
             return condition, condition
-        
+
         return None, None
-    
+
     def get_table(self, name: str) -> Optional[Dict[str, List]]:
         """Retourne une table au format {colonne: [valeurs]}"""
         if name in self.datas["tables"]:
             return self.datas["tables"][name]
         return None
-    
+
     def get_table_names(self) -> List[str]:
         """Retourne la liste des noms de tables disponibles"""
         return list(self.datas["tables"].keys())
-    
+
     def get_analysis_names(self) -> List[str]:
         """Retourne la liste des noms d'analyses disponibles"""
         return list(self.datas["analysis"].keys())
-    
+
     def export_results(self) -> Dict[str, Any]:
         """Exporte tous les résultats pour sauvegarde"""
         self._update_dict_tables()
-        # Convertir les résultats pour JSON
+
         return self._convert_dict_to_json_serializable(self.datas)
-    
+
     def clear(self):
         """Réinitialise l'évaluateur"""
         self.datas = {"tables": {}, "analysis": {}}
@@ -1067,54 +1033,51 @@ class Evaluator:
         self.output_messages.clear()
 
 
-# Fonction utilitaire pour intégration avec webview
+
 def evaluate_dsl_code(code: str, datas: Dict[str, Any]) -> Dict[str, Any]:
     """
     Fonction d'entrée pour évaluer du code DSL depuis l'interface webview.
-    
+
     Args:
         code: Code DSL à exécuter
         datas: Dictionnaire des données au format {"tables": {...}, "analysis": {...}}
-    
+
     Returns:
         Dictionnaire contenant les résultats et les messages
     """
     from core import Lexer
     from core import Parser
-    
+
     try:
-        # Tokenisation
+
         lexer = Lexer(code)
         tokens = lexer.tokenise()
-        
-        # Parsing
+
         parser = Parser(tokens)
         ast, errors = parser.parse()
-        
+
         if errors:
             return {
                 "success": False,
                 "errors": errors,
                 "messages": [{"type": "error", "content": e} for e in errors]
             }
-        
-        # Évaluation avec les données existantes
+
         evaluator = Evaluator(datas)
         messages = evaluator.evaluate(ast)
-        
-        # Convertir les messages pour JSON
+
         converted_messages = []
         for msg in messages:
             if isinstance(msg.get('content'), dict):
                 msg['content'] = evaluator._convert_dict_to_json_serializable(msg['content'])
             converted_messages.append(msg)
-        
+
         return {
             "success": True,
             "messages": converted_messages,
             "datas": evaluator.export_results()
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -1127,37 +1090,3 @@ def evaluate_dsl_code(code: str, datas: Dict[str, Any]) -> Dict[str, Any]:
                 }
             }]
         }
-
-
-# Exemple d'utilisation
-if __name__ == "__main__":
-    # Données initiales
-    datas = {
-        "tables": {
-            "demo": {
-                "first_variable": [1, 2, 3, 4, 5],
-                "second_variable": [10, 20, 30, 40, 50]
-            },
-            "employes": {
-                "nom": ["Alice", "Bob", "Charlie", "Diana"],
-                "age": [25, 32, 45, 28],
-                "salaire": [45000, 52000, 68000, 47000],
-                "departement": ["IT", "Sales", "IT", "Marketing"],
-                "actif": [True, True, False, True]
-            }
-        },
-        "analysis": {}
-    }
-    
-    # Code à exécuter
-    code = """
-    Load employes as emp
-    Transform emp filter(age > 30) as seniors
-    Analyze seniors [
-        count = COUNT(*),
-        age_moyen = AVG(age)
-    ] with show=true
-    """
-    
-    result = evaluate_dsl_code(code, datas)
-    print(json.dumps(result["messages"], indent=2, default=str))

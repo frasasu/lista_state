@@ -24,8 +24,8 @@
             </div>
             <div class="data-table">
                 <div class="grid-table"></div>
+                <div class="list-table"></div>
             </div>
-            <div class="list-table"></div>
             <div class="utils-table-all">
                 <div class="add-table-all" onclick="dataManager.openModalAddTable()">Add table</div>
                 <div class="delete-table" onclick="dataManager.openModalDeleteTable()">Delete table</div>
@@ -88,7 +88,6 @@
         <div id="session-tile-data" class="session-tile-data">New session</div>
     </div>
     <div class="settings-container">
-        <!-- Menu latéral des paramètres -->
         <div class="settings-sidebar">
             <div class="settings-menu-item active" onclick="settingsManager.switchSettingsTab('general')">
                 <span class="menu-icon">⚙️</span> Général
@@ -106,13 +105,9 @@
                 <span class="menu-icon">ℹ️</span> À propos
             </div>
         </div>
-        
-        <!-- Contenu des paramètres -->
         <div class="settings-content">
-            <!-- Général -->
             <div id="settings-general" class="settings-pane active">
                 <h2>Paramètres généraux</h2>
-                
                 <div class="settings-group">
                     <h3>Session</h3>
                     <div class="settings-item">
@@ -133,7 +128,6 @@
                         <input type="number" id="auto-save-interval" min="5" max="300" value="30">
                     </div>
                 </div>
-                
                 <div class="settings-group">
                     <h3>Fichiers</h3>
                     <div class="settings-item">
@@ -152,11 +146,9 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Éditeur -->
+
             <div id="settings-editor" class="settings-pane">
                 <h2>Paramètres de l'éditeur</h2>
-                
                 <div class="settings-group">
                     <h3>Apparence de l'éditeur</h3>
                     <div class="settings-item">
@@ -186,7 +178,7 @@
                         <input type="checkbox" id="editor-ligatures" checked>
                     </div>
                 </div>
-                
+
                 <div class="settings-group">
                     <h3>Comportement</h3>
                     <div class="settings-item">
@@ -211,11 +203,8 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Apparence -->
             <div id="settings-appearance" class="settings-pane">
                 <h2>Apparence de l'application</h2>
-                
                 <div class="settings-group">
                     <h3>Thème</h3>
                     <div class="settings-item">
@@ -233,7 +222,6 @@
                         </div>
                     </div>
                 </div>
-                
                 <div class="settings-group">
                     <h3>Disposition</h3>
                     <div class="settings-item">
@@ -254,11 +242,8 @@
                     </div>
                 </div>
             </div>
-            
-            <!-- Performance -->
             <div id="settings-performance" class="settings-pane">
                 <h2>Performance</h2>
-                
                 <div class="settings-group">
                     <h3>Mémoire</h3>
                     <div class="settings-item">
@@ -274,7 +259,6 @@
                         <input type="number" id="cache-size" min="100" max="4096" value="512">
                     </div>
                 </div>
-                
                 <div class="settings-group">
                     <h3>Traitement</h3>
                     <div class="settings-item">
@@ -286,7 +270,6 @@
                         <input type="checkbox" id="async-loading" checked>
                     </div>
                 </div>
-                
                 <div class="settings-group">
                     <h3>Statistiques</h3>
                     <div class="settings-item stats-display">
@@ -298,22 +281,17 @@
                     <button class="settings-btn" onclick="settingsManager.clearCache()">Vider le cache</button>
                 </div>
             </div>
-            
-            <!-- À propos -->
             <div id="settings-about" class="settings-pane">
                 <h2>À propos</h2>
-                
                 <div class="about-logo">
                     <div class="app-logo-large">📊</div>
                     <div class="app-name-large">Lista State</div>
                     <div class="app-version">Version 1.0.0</div>
                 </div>
-                
                 <div class="about-section">
                     <h3>Lista State - DSL Data Science</h3>
                     <p>Un langage dédié pour l'analyse de données, la manipulation de tables et les statistiques.</p>
                 </div>
-                
                 <div class="about-section">
                     <h3>Fonctionnalités</h3>
                     <ul class="feature-list">
@@ -325,7 +303,6 @@
                         <li>✅ Visualisation des résultats</li>
                     </ul>
                 </div>
-                
                 <div class="about-section">
                     <h3>Raccourcis clavier</h3>
                     <table class="shortcuts-table">
@@ -336,7 +313,6 @@
                         <tr><td><kbd>Esc</kbd></td><td>Fermer la modale</td></tr>
                     </table>
                 </div>
-                
                 <div class="about-section">
                     <h3>Licence</h3>
                     <p>MIT License - 2024</p>
@@ -344,8 +320,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Barre d'actions des paramètres -->
     <div class="settings-actions">
         <button class="settings-btn primary" onclick="settingsManager.saveSettings()">Sauvegarder</button>
         <button class="settings-btn" onclick="settingsManager.resetSettings()">Réinitialiser</button>

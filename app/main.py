@@ -11,10 +11,23 @@ import json
 import traceback
 from datetime import datetime
 
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+
+        return sys._MEIPASS
+    else:
+
+        return os.path.dirname(os.path.abspath(__file__))
+
 
 class ManagerApp:
     def __init__(self):
         self.current_file = sys.argv[1] if len(sys.argv) > 1 else None
+        self.base_path = get_base_path()
+
+    def get_ui_path(self):
+        """Retourne le chemin vers l'interface HTML"""
+        return os.path.join(self.base_path, 'ui', 'index.html')
 
     def initial_data(self):
         if not self.current_file or not os.path.exists(self.current_file):
@@ -124,7 +137,7 @@ class ManagerApp:
 
             if file_table.endswith(".csv"):
                 df = pd.read_csv(file_table)
-            elif file_table.endswith('.xlsx','.xls'):
+            elif file_table.endswith('.xlsx') or file_table.endswith('.xls'):
                 df = pd.read_excel(file_table, sheet_name=0)
 
             resultat = df.to_dict(orient='list')
@@ -136,24 +149,24 @@ class ManagerApp:
         """
         Évalue du code DSL et retourne les résultats.
         Appelée depuis JavaScript via pywebview.
-        
+
         Args:
             code: Code DSL à exécuter
             datas: Données actuelles au format {"tables": {...}, "analysis": {...}}
-        
+
         Returns:
             Dict avec les résultats et messages
         """
         try:
-            # Utiliser votre fonction d'évaluation
+
             result = evaluate_dsl_code(code, datas)
             return result
-            
+
         except Exception as e:
             error_msg = f"Erreur lors de l'évaluation: {str(e)}"
             print(error_msg)
             traceback.print_exc()
-            
+
             return {
                 "success": False,
                 "errors": [error_msg],
@@ -166,7 +179,7 @@ class ManagerApp:
                     "line": 0,
                     "timestamp": datetime.now().isoformat()
                 }],
-                "datas": datas  # Retourner les données inchangées
+                "datas": datas
             }
 
 
@@ -174,13 +187,17 @@ class ManagerApp:
 
 api = ManagerApp()
 
-webview.create_window(
-    "Lista State",
-    "ui/index.html",
+window = webview.create_window(
+    "Lista State - Statistical Data Analysis",
+    api.get_ui_path(),
     js_api=api,
     width=1200,
     height=1000,
-    min_size=(1000, 800)
+    min_size=(1000, 800),
+    resizable=True,
+    fullscreen=False,
+    confirm_close=True,
+    text_select=True,
 )
 
 webview.start()

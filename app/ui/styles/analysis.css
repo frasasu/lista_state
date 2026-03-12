@@ -435,7 +435,7 @@
     transform: translateY(0);
 }
 
-/* ===== RESULTS SECTION - DÉJÀ BON MAIS AJUSTEMENTS ===== */
+/* ===== RESULTS SECTION ===== */
 .analysis .right {
     padding: 25px;
     background: #f8fafc;
@@ -758,24 +758,24 @@
         height: auto;
         margin: 10px;
     }
-    
+
     .analysis .left,
     .analysis .right {
         width: 100%;
     }
-    
+
     .analysis .left .top .editor-wrapper {
         min-height: 350px;
     }
-    
+
     .analysis .left .top #editor {
         min-height: 350px;
     }
-    
+
     .analysis .left .bottom .box {
         flex-wrap: wrap;
     }
-    
+
     .analysis .left .bottom .box div {
         flex: 1 1 auto;
     }
@@ -811,7 +811,7 @@
     .modal-delete-analysis {
         display: none;
     }
-    
+
     .analysis .right {
         width: 100%;
         box-shadow: none;

@@ -6,7 +6,7 @@ class DataTableManager {
         this.core = DataCore;
         this.currentNameTable = null;
         this.grid_table = document.querySelector(".data-table .grid-table");
-        this.list_table = document.querySelector(".list-table");
+        this.list_table = document.querySelector(".data-table .list-table");
     }
 
     async init() {
@@ -15,8 +15,7 @@ class DataTableManager {
             if (initial) {
                 this.core.update(initial[0], initial[1]);
                 this.refreshUI();
-                
-                // Initialiser les settings après chargement des données
+
                 settingsManager.init();
 
                 const session_tile = document.querySelectorAll(".session-tile-data");
@@ -197,13 +196,14 @@ class DataTableManager {
             this.core.sessionName = name_session[0];
             this.core.payload = name_session[1];
 
-            // Mise à jour du titre
+            settingsManager.init();
+
+
             const session_tile = document.querySelectorAll(".session-tile-data");
             session_tile.forEach(tile => {
                 tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
             });
 
-            // Affichage de la première table
             const first_table = Object.keys(this.core.payload.tables)[0];
             if (first_table) {
                 this.currentNameTable = first_table;
@@ -213,10 +213,6 @@ class DataTableManager {
             }
             this.displayListTable();
 
-            // Recharger les paramètres
-            settingsManager.init();
-
-            // Mettre à jour le gestionnaire d'analyses
             if (window.analysisManager) {
                 window.analysisManager.displayListAnalysis();
                 const firstAnalysis = Object.keys(this.core.payload.analysis)[0];

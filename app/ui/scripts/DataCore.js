@@ -1,8 +1,8 @@
-// DataCore.js
+
 export const DataCore = {
     sessionName: "",
-    payload: { 
-        tables: {}, 
+    payload: {
+        tables: {},
         analysis: {},
         settings: {
             general: {
@@ -41,11 +41,11 @@ export const DataCore = {
 
     update(name, data) {
         this.sessionName = name;
-        // Fusionner les settings existants avec les nouveaux
+
         if (data.settings) {
             this.payload = data;
         } else {
-            // Si les données n'ont pas de settings, ajouter ceux par défaut
+
             this.payload = {
                 ...data,
                 settings: this.payload.settings
@@ -57,9 +57,8 @@ export const DataCore = {
         await pywebview.api.save_as(this.payload);
     },
 
-    // Méthodes pour gérer les settings
     getSettings() {
-        return this.payload.settings || this.payload.settings;
+        return this.payload.settings;
     },
 
     updateSettings(newSettings) {

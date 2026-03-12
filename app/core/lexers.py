@@ -3,15 +3,15 @@ import re
 class Lexer:
 
     tokens_types = [
-    # COMMENTAIRES
+
     ('SKIP_COMMENT', r'^//[^\n]*|^#[^\n]*',),
     ('SKIP_BLOCK_COMMENT', r'^/\*.*?\*/',),
 
-    # CHAÎNES
+
     ('STRING', r'^"[^"\\]*(\\.[^"\\]*)*"',),
     ('STRING', r"^'[^'\\]*(\\.[^'\\]*)*'",),
 
-    # KEYWORDS - Commandes principales
+
     ('LOAD', r'^Load\b',),
     ('TRANSFORM', r'^Transform\b',),
     ('ANALYSE', r'^Analyse\b',),
@@ -38,7 +38,7 @@ class Lexer:
     ('FOR', r'^FOR\b',),
     ('WHILE', r'^WHILE\b',),
 
-    # KEYWORDS - Mots-clés de contrôle
+
     ('IN', r'^IN\b'),
     ('AS', r'^as\b'),
     ('FROM', r'^from\b'),
@@ -85,14 +85,11 @@ class Lexer:
     ('ENTROPY', r'^ENTROPY\b',),
     ('ROW_NUMBER', r'^ROW_NUMBER\b',),
 
-    # KEYWORDS - Fonctions de transformations
     ('SELECT', r'^select\b',),
     ('DROP', r'^drop\b',),
     ('FILTER', r'^filter\b',),
     ("CREATE_FEATURE", r'^create_feature\b',),
 
-
-    # KEYWORDS - Tests statistiques
     ('T_TEST', r'^t_test\b',),
     ('ANOVA', r'^anova\b',),
     ('CHI2', r'^chi2_test\b',),
@@ -110,7 +107,6 @@ class Lexer:
     ('EXPONENTIAL', r'^EXPONENTIAL_SMOOTHING\b',),
     ('LOG', r'^LOG\b',),
 
-    # KEYWORDS - NLP
     ('WORD_COUNT', r'^WORD_COUNT\b',),
     ('SENTENCE_COUNT', r'^SENTENCE_COUNT\b',),
     ('TOP_WORDS', r'^TOP_WORDS\b',),
@@ -122,7 +118,6 @@ class Lexer:
     ('NER', r'^NER\b',),
     ('COSINE_SIMILARITY', r'^COSINE_SIMILARITY\b',),
 
-    # KEYWORDS - Visualisation
     ('HISTOGRAM', r'^histogram\b',),
     ('BAR_CHART', r'^bar_chart\b',),
     ('SCATTER', r'^scatter\b',),
@@ -154,7 +149,6 @@ class Lexer:
     ('ROUND',r'^ROUND\b',),
     ('UNBOUNDED', r'^UNBOUNDED\b',),
 
-    # KEYWORDS - Machine Learning
     ('REGRESSION', r'^regression\b',),
     ('CLASSIFICATION', r'^classification\b',),
     ('CLUSTER', r'^cluster\b',),
@@ -176,7 +170,6 @@ class Lexer:
     ('BAYESIAN', r'^bayesian_optimization\b',),
     ('CROSS_VALIDATION', r'^cross_validation\b',),
 
-    # OPÉRATEURS LONGS
     ('POW', r'^\*\*',),
     ('GE', r'^>=',),
     ('LE', r'^<=',),
@@ -193,7 +186,6 @@ class Lexer:
     ('ARROW', r'^->',),
     ('ELLIPSIS', r'^\.\.\.',),
 
-    # OPÉRATEURS SIMPLES
     ('GT', r'^>',),
     ('LT', r'^<',),
     ('PLUS', r'^\+',),
@@ -209,14 +201,11 @@ class Lexer:
     ('NOT_OP', r'^!',),
     ('TERNARY', r'^\?',),
 
-    # NOMBRES
     ('FLOAT', r'^\d+\.\d+',),
     ('NUMBER', r'^\d+',),
 
-    # IDENTIFIANTS
     ('IDENTIFIER', r'^[a-zA-Z_][a-zA-Z0-9_]*',),
 
-    # DÉLIMITEURS
     ('LPAREN', r'^\(',),
     ('RPAREN', r'^\)',),
     ('LBRACE', r'^\{',),
@@ -229,7 +218,6 @@ class Lexer:
     ('DOT', r'^\.',),
     ('INTERPOLATION', r'^\$\{',),
 
-    # ESPACES
     ('NEWLINE', r'^\n',),
     ('WHITESPACE', r'^[ \t]+',)
 ]

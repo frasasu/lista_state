@@ -249,14 +249,15 @@ body {
 }
 
 /* List Table - Modernisé */
-.list-table {
+.data-table .list-table {
     display: flex;
     gap: 10px;
     overflow-x: auto;
     padding: 10px 0;
+    min-height: 70px;
 }
 
-.list-table .list-table-item {
+.data-table .list-table .list-table-item {
     padding: 10px 20px;
     background: linear-gradient(135deg, #f7fafc, #edf2f7);
     border: 1px solid #e2e8f0;
@@ -270,7 +271,7 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
-.list-table .list-table-item:hover {
+.data-table .list-table .list-table-item:hover {
     background: linear-gradient(135deg, #4299e1, #667eea);
     color: white;
     border-color: transparent;
@@ -278,7 +279,7 @@ body {
     box-shadow: 0 5px 15px rgba(66, 153, 225, 0.3);
 }
 
-.list-table .list-table-item:active {
+.data-table .list-table .list-table-item:active {
     transform: translateY(0);
 }
 
