@@ -1,15 +1,16 @@
 import webview
 import os
-import pickle
 import sys
 import zipfile
 import pandas as pd
 from pathlib import PurePosixPath
 import json
 from typing import Dict,Any
-from core.data import DataManager
+from core.executors import evaluate_dsl_code
+import json
+import traceback
+from datetime import datetime
 
-dataView = DataManager()
 
 class ManagerApp:
     def __init__(self):
@@ -22,7 +23,7 @@ class ManagerApp:
             return {"error":"Erreur du fichier .lst"}
 
         try:
-            data = {"tables":{},"analysis":{}}
+            data = {"tables":{},"analysis":{},"settings": {}}
             with zipfile.ZipFile(self.current_file, "r") as z:
                 for info in z.infolist():
 
@@ -41,6 +42,9 @@ class ManagerApp:
                             data["tables"][filename]=json.loads(content)
                          elif folder == "analysis":
                             data["analysis"][filename]=content.decode("utf-8")
+                         elif folder == "settings" and filename == "config":
+                            data["settings"] = json.loads(content)
+
 
             return os.path.basename(self.current_file), data
         except Exception as e:
@@ -61,6 +65,9 @@ class ManagerApp:
 
                     for name_analysis, content_analysis in data["analysis"].items():
                         z.writestr(f"analysis/{name_analysis}.txt", content_analysis)
+
+                    if "settings" in data:
+                        z.writestr("settings/config.json", json.dumps(data["settings"]))
                 return {"success":True}
             except Exception as e:
                 return {"error":str(e)}
@@ -124,6 +131,43 @@ class ManagerApp:
             file_table = os.path.basename(file_table)
 
             return file_table.split(".")[0], resultat
+
+    def evaluate_dsl(self, code: str, datas: dict) -> dict:
+        """
+        Évalue du code DSL et retourne les résultats.
+        Appelée depuis JavaScript via pywebview.
+        
+        Args:
+            code: Code DSL à exécuter
+            datas: Données actuelles au format {"tables": {...}, "analysis": {...}}
+        
+        Returns:
+            Dict avec les résultats et messages
+        """
+        try:
+            # Utiliser votre fonction d'évaluation
+            result = evaluate_dsl_code(code, datas)
+            return result
+            
+        except Exception as e:
+            error_msg = f"Erreur lors de l'évaluation: {str(e)}"
+            print(error_msg)
+            traceback.print_exc()
+            
+            return {
+                "success": False,
+                "errors": [error_msg],
+                "messages": [{
+                    "type": "error",
+                    "content": {
+                        "message": error_msg,
+                        "traceback": traceback.format_exc()
+                    },
+                    "line": 0,
+                    "timestamp": datetime.now().isoformat()
+                }],
+                "datas": datas  # Retourner les données inchangées
+            }
 
 
 

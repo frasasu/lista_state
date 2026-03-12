@@ -1,31 +1,31 @@
 import { DataCore } from "./DataCore.js";
+import settingsManager from './SettingsManager.js';
 
 class DataTableManager {
     constructor() {
         this.core = DataCore;
         this.currentNameTable = null;
         this.grid_table = document.querySelector(".data-table .grid-table");
-        this.list_table = document.querySelector(".data-table .list-table");
+        this.list_table = document.querySelector(".list-table");
     }
 
     async init() {
         window.addEventListener("pywebviewready", async () => {
-
             const initial = await pywebview.api.initial_data();
             if (initial) {
                 this.core.update(initial[0], initial[1]);
                 this.refreshUI();
+                
+                // Initialiser les settings après chargement des données
+                settingsManager.init();
 
                 const session_tile = document.querySelectorAll(".session-tile-data");
                 session_tile.forEach(tile => {
                     tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
-            }
-
-       );
+                });
             }
         });
     }
-
     refreshUI() {
         const firstTable = Object.keys(this.core.payload.tables)[0];
         if (firstTable){
@@ -189,44 +189,48 @@ class DataTableManager {
     }
 }
 
-   async ChoosePathSessionLife() {
-    const name_session = await pywebview.api.open_file_dialog();
+  async ChoosePathSessionLife() {
+    try {
+        const name_session = await pywebview.api.open_file_dialog();
 
-    if (name_session && name_session[0]) {
+        if (name_session && name_session[0]) {
+            this.core.sessionName = name_session[0];
+            this.core.payload = name_session[1];
 
-        this.core.sessionName = name_session[0];
-        this.core.payload = name_session[1];
+            // Mise à jour du titre
+            const session_tile = document.querySelectorAll(".session-tile-data");
+            session_tile.forEach(tile => {
+                tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
+            });
 
-
-        const session_tile = document.querySelectorAll(".session-tile-data");
-        session_tile.forEach(tile => {
-            tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
-        });
-
-
-        const first_table = Object.keys(this.core.payload.tables)[0];
-        if (first_table) {
-            this.currentNameTable = first_table;
-            this.displayTable(first_table);
-        } else {
-            this.grid_table.innerHTML = '<div class="empty-state">Aucune table dans cette session</div>';
-        }
-        this.displayListTable();
-
-
-        if (window.analysisManager) {
-            window.analysisManager.displayListAnalysis();
-
-            const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
-            if (firstAnalysis) {
-                window.analysisManager.currentAnalysisName = firstAnalysis;
-                window.analysisManager.displayAnalysis(firstAnalysis);
+            // Affichage de la première table
+            const first_table = Object.keys(this.core.payload.tables)[0];
+            if (first_table) {
+                this.currentNameTable = first_table;
+                this.displayTable(first_table);
             } else {
+                this.grid_table.innerHTML = '<div class="empty-state">Aucune table dans cette session</div>';
+            }
+            this.displayListTable();
 
-                window.analysisManager.editor.value = "";
-                window.analysisManager.updateLineNumbers();
+            // Recharger les paramètres
+            settingsManager.init();
+
+            // Mettre à jour le gestionnaire d'analyses
+            if (window.analysisManager) {
+                window.analysisManager.displayListAnalysis();
+                const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
+                if (firstAnalysis) {
+                    window.analysisManager.currentAnalysisName = firstAnalysis;
+                    window.analysisManager.displayAnalysis(firstAnalysis);
+                } else {
+                    window.analysisManager.editor.value = "";
+                    window.analysisManager.updateLineNumbers();
+                }
             }
         }
+    } catch (error) {
+        alert("Une erreur est survenue lors du chargement de la session.");
     }
 }
     playTable(me){
@@ -785,6 +789,7 @@ dataManager.init();
 dataManager.setupEventListeners();
 
 window.dataManager = dataManager
+window.settingsManager = settingsManager;
 
 
 

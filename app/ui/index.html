@@ -24,8 +24,8 @@
             </div>
             <div class="data-table">
                 <div class="grid-table"></div>
-                <div class="list-table"></div>
             </div>
+            <div class="list-table"></div>
             <div class="utils-table-all">
                 <div class="add-table-all" onclick="dataManager.openModalAddTable()">Add table</div>
                 <div class="delete-table" onclick="dataManager.openModalDeleteTable()">Delete table</div>
@@ -83,11 +83,276 @@
                 <div class="right"></div>
             </div>
         </div>
-        <div id="settings" class="tab">
-            <div class="session-title">
-                <div id="session-tile-data" class="session-tile-data">New session</div>
+    <div id="settings" class="tab">
+    <div class="session-title">
+        <div id="session-tile-data" class="session-tile-data">New session</div>
+    </div>
+    <div class="settings-container">
+        <!-- Menu latéral des paramètres -->
+        <div class="settings-sidebar">
+            <div class="settings-menu-item active" onclick="settingsManager.switchSettingsTab('general')">
+                <span class="menu-icon">⚙️</span> Général
+            </div>
+            <div class="settings-menu-item" onclick="settingsManager.switchSettingsTab('editor')">
+                <span class="menu-icon">📝</span> Éditeur
+            </div>
+            <div class="settings-menu-item" onclick="settingsManager.switchSettingsTab('appearance')">
+                <span class="menu-icon">🎨</span> Apparence
+            </div>
+            <div class="settings-menu-item" onclick="settingsManager.switchSettingsTab('performance')">
+                <span class="menu-icon">⚡</span> Performance
+            </div>
+            <div class="settings-menu-item" onclick="settingsManager.switchSettingsTab('about')">
+                <span class="menu-icon">ℹ️</span> À propos
             </div>
         </div>
+        
+        <!-- Contenu des paramètres -->
+        <div class="settings-content">
+            <!-- Général -->
+            <div id="settings-general" class="settings-pane active">
+                <h2>Paramètres généraux</h2>
+                
+                <div class="settings-group">
+                    <h3>Session</h3>
+                    <div class="settings-item">
+                        <label>Session par défaut au démarrage</label>
+                        <select id="default-session">
+                            <option value="new">Nouvelle session</option>
+                            <option value="last">Dernière session ouverte</option>
+                            <option value="none">Aucune</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Sauvegarde automatique</label>
+                        <input type="checkbox" id="auto-save" checked>
+                        <span class="setting-description">Sauvegarder automatiquement les modifications</span>
+                    </div>
+                    <div class="settings-item">
+                        <label>Intervalle de sauvegarde (secondes)</label>
+                        <input type="number" id="auto-save-interval" min="5" max="300" value="30">
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3>Fichiers</h3>
+                    <div class="settings-item">
+                        <label>Dossier par défaut</label>
+                        <input type="text" id="default-folder" placeholder="C:\Users\...">
+                        <button class="settings-btn" onclick="settingsManager.browseFolder()">Parcourir</button>
+                    </div>
+                    <div class="settings-item">
+                        <label>Format d'export par défaut</label>
+                        <select id="default-export-format">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                            <option value="excel">Excel</option>
+                            <option value="html">HTML</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Éditeur -->
+            <div id="settings-editor" class="settings-pane">
+                <h2>Paramètres de l'éditeur</h2>
+                
+                <div class="settings-group">
+                    <h3>Apparence de l'éditeur</h3>
+                    <div class="settings-item">
+                        <label>Thème</label>
+                        <select id="editor-theme">
+                            <option value="dracula">Dracula (sombre)</option>
+                            <option value="monokai">Monokai</option>
+                            <option value="github">GitHub (clair)</option>
+                            <option value="solarized">Solarized</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Taille de la police</label>
+                        <input type="number" id="editor-font-size" min="10" max="24" value="14">
+                    </div>
+                    <div class="settings-item">
+                        <label>Famille de police</label>
+                        <select id="editor-font-family">
+                            <option value="'Fira Code', monospace">Fira Code</option>
+                            <option value="'Consolas', monospace">Consolas</option>
+                            <option value="'Monaco', monospace">Monaco</option>
+                            <option value="'Courier New', monospace">Courier New</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Ligatures</label>
+                        <input type="checkbox" id="editor-ligatures" checked>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3>Comportement</h3>
+                    <div class="settings-item">
+                        <label>Indentation</label>
+                        <select id="editor-indentation">
+                            <option value="spaces-2">2 espaces</option>
+                            <option value="spaces-4" selected>4 espaces</option>
+                            <option value="tab">Tabulation</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Auto-complétion</label>
+                        <input type="checkbox" id="editor-autocomplete" checked>
+                    </div>
+                    <div class="settings-item">
+                        <label>Surlignage de la ligne courante</label>
+                        <input type="checkbox" id="editor-highlight-line" checked>
+                    </div>
+                    <div class="settings-item">
+                        <label>Numéros de ligne</label>
+                        <input type="checkbox" id="editor-line-numbers" checked>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Apparence -->
+            <div id="settings-appearance" class="settings-pane">
+                <h2>Apparence de l'application</h2>
+                
+                <div class="settings-group">
+                    <h3>Thème</h3>
+                    <div class="settings-item">
+                        <label>Thème de l'application</label>
+                        <select id="app-theme">
+                            <option value="light">Clair</option>
+                            <option value="dark" selected>Sombre</option>
+                            <option value="system">Système</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Couleur d'accentuation</label>
+                        <div class="color-picker">
+                            <input type="color" id="accent-color" value="#4299e1">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3>Disposition</h3>
+                    <div class="settings-item">
+                        <label>Densité d'affichage</label>
+                        <select id="ui-density">
+                            <option value="compact">Compact</option>
+                            <option value="comfortable" selected>Confortable</option>
+                            <option value="spacious">Espacé</option>
+                        </select>
+                    </div>
+                    <div class="settings-item">
+                        <label>Afficher les aperçus</label>
+                        <input type="checkbox" id="show-previews" checked>
+                    </div>
+                    <div class="settings-item">
+                        <label>Barre latérale réduite par défaut</label>
+                        <input type="checkbox" id="sidebar-collapsed">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance -->
+            <div id="settings-performance" class="settings-pane">
+                <h2>Performance</h2>
+                
+                <div class="settings-group">
+                    <h3>Mémoire</h3>
+                    <div class="settings-item">
+                        <label>Limite de mémoire (Mo)</label>
+                        <input type="number" id="memory-limit" min="512" max="16384" value="2048">
+                    </div>
+                    <div class="settings-item">
+                        <label>Cache des données</label>
+                        <input type="checkbox" id="data-cache" checked>
+                    </div>
+                    <div class="settings-item">
+                        <label>Taille du cache (Mo)</label>
+                        <input type="number" id="cache-size" min="100" max="4096" value="512">
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3>Traitement</h3>
+                    <div class="settings-item">
+                        <label>Nombre de threads parallèles</label>
+                        <input type="number" id="parallel-threads" min="1" max="16" value="4">
+                    </div>
+                    <div class="settings-item">
+                        <label>Chargement asynchrone</label>
+                        <input type="checkbox" id="async-loading" checked>
+                    </div>
+                </div>
+                
+                <div class="settings-group">
+                    <h3>Statistiques</h3>
+                    <div class="settings-item stats-display">
+                        <div>Mémoire utilisée: <span id="memory-usage">0 MB</span></div>
+                        <div>Temps de réponse moyen: <span id="avg-response">0 ms</span></div>
+                        <div>Tables chargées: <span id="loaded-tables">0</span></div>
+                        <div>Dernière analyse: <span id="last-analysis">-</span></div>
+                    </div>
+                    <button class="settings-btn" onclick="settingsManager.clearCache()">Vider le cache</button>
+                </div>
+            </div>
+            
+            <!-- À propos -->
+            <div id="settings-about" class="settings-pane">
+                <h2>À propos</h2>
+                
+                <div class="about-logo">
+                    <div class="app-logo-large">📊</div>
+                    <div class="app-name-large">Lista State</div>
+                    <div class="app-version">Version 1.0.0</div>
+                </div>
+                
+                <div class="about-section">
+                    <h3>Lista State - DSL Data Science</h3>
+                    <p>Un langage dédié pour l'analyse de données, la manipulation de tables et les statistiques.</p>
+                </div>
+                
+                <div class="about-section">
+                    <h3>Fonctionnalités</h3>
+                    <ul class="feature-list">
+                        <li>✅ Chargement de données (CSV, Excel)</li>
+                        <li>✅ Transformation de tables (SELECT, DROP, FILTER)</li>
+                        <li>✅ Création de features (CREATE_FEATURE)</li>
+                        <li>✅ Analyse statistique (AVG, SUM, COUNT, etc.)</li>
+                        <li>✅ Agrégations et GROUP BY</li>
+                        <li>✅ Visualisation des résultats</li>
+                    </ul>
+                </div>
+                
+                <div class="about-section">
+                    <h3>Raccourcis clavier</h3>
+                    <table class="shortcuts-table">
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Sauvegarder</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>Sauvegarder la table courante</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Supprimer l'analyse courante</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>Enter</kbd></td><td>Exécuter l'analyse</td></tr>
+                        <tr><td><kbd>Esc</kbd></td><td>Fermer la modale</td></tr>
+                    </table>
+                </div>
+                
+                <div class="about-section">
+                    <h3>Licence</h3>
+                    <p>MIT License - 2024</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Barre d'actions des paramètres -->
+    <div class="settings-actions">
+        <button class="settings-btn primary" onclick="settingsManager.saveSettings()">Sauvegarder</button>
+        <button class="settings-btn" onclick="settingsManager.resetSettings()">Réinitialiser</button>
+        <button class="settings-btn" onclick="settingsManager.exportSettings()">Exporter</button>
+        <button class="settings-btn" onclick="settingsManager.importSettings()">Importer</button>
+    </div>
+</div>
     </div>
 </div>
 <div id="modal_table_utils" class="modal_table_utils">
