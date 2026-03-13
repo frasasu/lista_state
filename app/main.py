@@ -10,6 +10,7 @@ from core.executors import evaluate_dsl_code
 import json
 import traceback
 from datetime import datetime
+from core import TableImporter
 
 def get_base_path():
     if getattr(sys, 'frozen', False):
@@ -24,6 +25,7 @@ class ManagerApp:
     def __init__(self):
         self.current_file = sys.argv[1] if len(sys.argv) > 1 else None
         self.base_path = get_base_path()
+        self.importer = TableImporter(webview)
 
     def get_ui_path(self):
         """Retourne le chemin vers l'interface HTML"""
@@ -124,26 +126,8 @@ class ManagerApp:
         return None,
 
     def import_table(self):
-        window = webview.active_window()
-        file_types=('Fichier csv(*.csv)','Fichier xlsx(*.xlsx)','Fichier xls(*.xls)')
-        file_paths = window.create_file_dialog(
-            webview.OPEN_DIALOG,
-            allow_multiple=False,
-            file_types=file_types
-        )
-
-        if file_paths:
-            file_table = file_paths[0]
-
-            if file_table.endswith(".csv"):
-                df = pd.read_csv(file_table)
-            elif file_table.endswith('.xlsx') or file_table.endswith('.xls'):
-                df = pd.read_excel(file_table, sheet_name=0)
-
-            resultat = df.to_dict(orient='list')
-            file_table = os.path.basename(file_table)
-
-            return file_table.split(".")[0], resultat
+        """Importe un fichier CSV ou Excel"""
+        return self.importer.import_table()  # Appeler la méthode de la classe
 
     def evaluate_dsl(self, code: str, datas: dict) -> dict:
         """

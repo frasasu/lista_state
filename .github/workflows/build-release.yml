@@ -1,0 +1,207 @@
+# .github/workflows/build-release.yml
+name: Build and Release Lista State
+
+on:
+  push:
+    tags:
+      - 'v*'                # Déclenché sur les tags v1.0.0, v2.0.0, etc.
+  workflow_dispatch:        # Permet le déclenchement manuel
+    inputs:
+      version:
+        description: 'Version to build (optional)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        python-version: ['3.11']
+        arch: ['x64']
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # Pour récupérer tous les tags
+      
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.arch }}
+          cache: 'pip'       # Cache les dépendances pour accélérer
+      
+      - name: Get version from tag
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ github.event.inputs.version }}" -ne "") {
+            $VERSION = "${{ github.event.inputs.version }}"
+          } else {
+            $VERSION = "${{ github.ref_name }}" -replace 'v', ''
+          }
+          echo "VERSION=$VERSION" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "version=$VERSION" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          echo "✅ Version détectée : $VERSION"
+      
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+          echo "✅ Dépendances installées"
+      
+      - name: Build with PyInstaller
+        shell: pwsh
+        run: |
+          Write-Host "🔨 Building ListaState.exe..."
+          pyinstaller --name="ListaState" --windowed --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
+          
+          # Vérifier que l'exécutable a été créé
+          if (Test-Path "dist\ListaState\ListaState.exe") {
+            $fileSize = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
+            Write-Host "✅ Exécutable créé : $([math]::Round($fileSize, 2)) MB"
+          } else {
+            Write-Error "❌ Échec de la création de l'exécutable"
+            exit 1
+          }
+      
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress --limit-output
+          Write-Host "✅ Inno Setup installé"
+      
+      - name: Update version in Inno Setup script
+        shell: pwsh
+        run: |
+          $content = Get-Content installer.iss -Raw
+          $content = $content -replace '{#VERSION}', '${{ env.VERSION }}'
+          $content | Set-Content installer.iss
+          Write-Host "✅ Version mise à jour : ${{ env.VERSION }}"
+      
+      - name: Create installer with Inno Setup
+        shell: pwsh
+        run: |
+          Write-Host "🔨 Création de l'installateur..."
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          
+          # Vérifier que l'installateur a été créé
+          $installerName = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
+          if (Test-Path $installerName) {
+            $fileSize = (Get-Item $installerName).Length / 1MB
+            Write-Host "✅ Installateur créé : $([math]::Round($fileSize, 2)) MB"
+          } else {
+            Write-Error "❌ Échec de la création de l'installateur"
+            exit 1
+          }
+      
+      - name: Rename installer with architecture info
+        shell: pwsh
+        run: |
+          $originalName = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
+          $newName = "installer\ListaState_Setup_${{ env.VERSION }}_${{ matrix.arch }}.exe"
+          
+          if (Test-Path $originalName) {
+            Move-Item -Path $originalName -Destination $newName -Force
+            Write-Host "✅ Installateur renommé : $newName"
+          } else {
+            Write-Error "❌ Installateur introuvable"
+            exit 1
+          }
+      
+      - name: Create checksum file
+        shell: pwsh
+        run: |
+          $installerPath = "installer\ListaState_Setup_${{ env.VERSION }}_${{ matrix.arch }}.exe"
+          if (Test-Path $installerPath) {
+            $hash = Get-FileHash -Path $installerPath -Algorithm SHA256
+            $hash.Hash | Out-File -FilePath "$installerPath.sha256"
+            Write-Host "✅ SHA256 : $($hash.Hash)"
+          }
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ListaState-Installer-${{ env.VERSION }}-${{ matrix.arch }}
+          path: |
+            installer/ListaState_Setup_${{ env.VERSION }}_${{ matrix.arch }}.exe
+            installer/*.sha256
+          retention-days: 30
+          if-no-files-found: error
+      
+      - name: Display build summary
+        shell: pwsh
+        run: |
+          Write-Host ""
+          Write-Host "=" * 60
+          Write-Host "✅ BUILD TERMINÉ AVEC SUCCÈS"
+          Write-Host "=" * 60
+          Write-Host "📦 Version     : ${{ env.VERSION }}"
+          Write-Host "🐍 Python      : ${{ matrix.python-version }}"
+          Write-Host "🖥️ Architecture : ${{ matrix.arch }}"
+          Write-Host "📁 Artifact    : ListaState-Installer-${{ env.VERSION }}-${{ matrix.arch }}"
+          Write-Host "=" * 60
+
+  create-release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+      actions: read
+    
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ListaState-Installer-*
+          merge-multiple: true
+      
+      - name: List downloaded files
+        run: |
+          echo "📁 Fichiers téléchargés :"
+          ls -la artifacts/
+          echo ""
+          echo "📊 Détails :"
+          find artifacts/ -type f -exec ls -lh {} \;
+      
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version : $VERSION"
+      
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          if [ -f "CHANGELOG.md" ]; then
+            NOTES=$(cat CHANGELOG.md)
+          else
+            NOTES="## 🚀 Version ${{ steps.version.outputs.version }}\n\n### ✨ Nouveautés\n- Version automatique\n\n### 📦 Installation\nTéléchargez l'installateur et exécutez-le."
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Lista State ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          body: ${{ steps.release_notes.outputs.notes }}
+          files: |
+            artifacts/*.exe
+            artifacts/*.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
