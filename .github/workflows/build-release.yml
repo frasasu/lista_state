@@ -52,7 +52,7 @@ jobs:
       
       - name: Build with PyInstaller
         run: |
-          pyinstaller --name="ListaState" --windowed --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
+          pyinstaller --name="ListaState" --windowed --icon="app/assets/monicone.ico" --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
           
           # Vérifier l'exécutable
           if (Test-Path "dist\ListaState\ListaState.exe") {
