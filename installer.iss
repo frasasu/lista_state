@@ -3,8 +3,8 @@
 AppName=Lista State
 AppVersion={#VERSION}
 AppPublisher=Université du Burundi
-AppPublisherURL=https://github.com/frasasu/lista-state
-AppSupportURL=https://github.com/frasasu/lista-state
+AppPublisherURL=https://github.com/frasasu/lista_state
+AppSupportURL=https://github.com/frasasu/lista_state
 DefaultDirName={autopf}\ListaState
 DefaultGroupName=Lista State
 UninstallDisplayIcon={app}\ListaState.exe

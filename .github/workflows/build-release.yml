@@ -16,6 +16,8 @@ jobs:
   build:
     name: Build Windows Installer
     runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     
     steps:
       - name: Checkout code
@@ -69,7 +71,6 @@ jobs:
         run: |
           (Get-Content installer.iss) -replace '{#VERSION}', '${{ env.VERSION }}' | Set-Content installer.iss
           Write-Host "✅ Version mise à jour: ${{ env.VERSION }}"
-          Get-Content installer.iss | Select-String "AppVersion"
       
       - name: Create installer
         run: |
@@ -87,6 +88,10 @@ jobs:
             if ($files.Count -gt 0) {
               Write-Host "✅ Installateur trouvé: $($files[0].Name)"
               $installer = $files[0].FullName
+              # Renommer si nécessaire
+              if ($files[0].Name -ne "ListaState_Setup_${{ env.VERSION }}.exe") {
+                Move-Item -Path $files[0].FullName -Destination "installer\ListaState_Setup_${{ env.VERSION }}.exe" -Force
+              }
             } else {
               Write-Error "❌ Échec de la création"
               exit 1
@@ -96,9 +101,10 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ListaState-Installer-${{ env.VERSION }}
-          path: installer/*.exe
+          name: ListaState-Installer  # Nom FIXE sans version
+          path: installer/ListaState_Setup_${{ env.VERSION }}.exe
           retention-days: 30
+          if-no-files-found: error
 
   create-release:
     name: Create GitHub Release
@@ -112,17 +118,61 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ListaState-Installer-${{ github.ref_name }}
+          name: ListaState-Installer  # Même nom que dans upload
           path: artifacts
       
-      - name: List files
-        run: ls -la artifacts/
+      - name: List downloaded files
+        run: |
+          echo "📁 Fichiers téléchargés :"
+          ls -la artifacts/
+          echo "Contenu :"
+          find artifacts/ -type f -exec ls -lh {} \;
+      
+      - name: Get version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ Version : $VERSION"
+      
+      - name: Rename installer with version (if needed)
+        run: |
+          if [ -f "artifacts/ListaState_Setup_${{ steps.version.outputs.version }}.exe" ]; then
+            echo "✅ Installateur déjà nommé correctement"
+          else
+            # Chercher le fichier exe
+            for file in artifacts/*.exe; do
+              if [ -f "$file" ]; then
+                mv "$file" "artifacts/ListaState_Setup_${{ steps.version.outputs.version }}.exe"
+                echo "✅ Installateur renommé"
+                break
+              fi
+            done
+          fi
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          name: Lista State ${{ github.ref_name }}
-          files: artifacts/*.exe
+          name: Lista State ${{ steps.version.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 🚀 Lista State ${{ steps.version.outputs.version }}
+            
+            ### 📦 Installation
+            1. Téléchargez l'installateur ci-dessous
+            2. Exécutez le fichier .exe
+            3. Suivez les instructions d'installation
+            
+            ### ✨ Nouveautés
+            - Version automatique générée par GitHub Actions
+            
+            ### 🔧 Configuration
+            - Python 3.11
+            - Windows 64-bit
+          files: |
+            artifacts/*.exe
           generate_release_notes: true
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
