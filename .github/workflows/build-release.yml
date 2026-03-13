@@ -68,9 +68,12 @@ jobs:
       - name: Update version in Inno Setup script
         run: |
           (Get-Content installer.iss) -replace '{#VERSION}', '${{ env.VERSION }}' | Set-Content installer.iss
+          Write-Host "✅ Version mise à jour: ${{ env.VERSION }}"
+          Get-Content installer.iss | Select-String "AppVersion"
       
       - name: Create installer
         run: |
+          Write-Host "🔨 Création de l'installateur..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
           
           # Vérifier l'installateur
@@ -79,15 +82,22 @@ jobs:
             $size = (Get-Item $installer).Length / 1MB
             Write-Host "✅ Installateur créé : $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "❌ Échec de la création"
-            exit 1
+            # Chercher d'autres fichiers exe
+            $files = Get-ChildItem -Path "installer" -Filter "*.exe"
+            if ($files.Count -gt 0) {
+              Write-Host "✅ Installateur trouvé: $($files[0].Name)"
+              $installer = $files[0].FullName
+            } else {
+              Write-Error "❌ Échec de la création"
+              exit 1
+            }
           }
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ListaState-Installer-${{ env.VERSION }}
-          path: installer/ListaState_Setup_${{ env.VERSION }}.exe
+          path: installer/*.exe
           retention-days: 30
 
   create-release:
@@ -104,6 +114,9 @@ jobs:
         with:
           name: ListaState-Installer-${{ github.ref_name }}
           path: artifacts
+      
+      - name: List files
+        run: ls -la artifacts/
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
