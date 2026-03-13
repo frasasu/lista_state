@@ -12,8 +12,13 @@ class DataTableManager {
     async init() {
         window.addEventListener("pywebviewready", async () => {
             const initial = await pywebview.api.initial_data();
-            if (initial) {
-                this.core.update(initial[0], initial[1]);
+
+            if (initial && initial.error) {
+            alert(`Erreur: ${initial.error}`);
+            return;
+        }
+            if (initial && initial.success) {
+                this.core.update(initial.name, initial.data);
                 this.refreshUI();
 
                 settingsManager.init();
@@ -164,14 +169,6 @@ async ChoosePathNewSession() {
             return;
         }
 
-        if (Array.isArray(result) && result.length === 2) {
-            const [name, data] = result;
-            if (name && data) {
-                await this.handleNewSession(name, data);
-            }
-            return;
-        }
-
         if (result && result.success) {
             await this.handleNewSession(result.name, result.data);
         }
@@ -220,9 +217,14 @@ async handleNewSession(name, data) {
     try {
         const name_session = await pywebview.api.open_file_dialog();
 
-        if (name_session && name_session[0]) {
-            this.core.sessionName = name_session[0];
-            this.core.payload = name_session[1];
+        if (name_session && name_session.error) {
+            alert(`Erreur: ${name_session.error}`);
+            return;
+        }
+
+        if (name_session && name_session.success) {
+            this.core.sessionName = name_session.name;
+            this.core.payload = name_session.data;
 
             settingsManager.init();
 
