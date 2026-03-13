@@ -1,4 +1,4 @@
-; installer_complet.iss
+; installer.iss
 [Setup]
 AppName=Lista State
 AppVersion={#VERSION}
@@ -17,10 +17,10 @@ WizardStyle=modern
 PrivilegesRequired=admin
 
 [Files]
-; Icône unique pour tout
+; Icône
 Source: "app\assets\monicone.ico"; DestDir: "{app}"; DestName: "monicone.ico"; Flags: ignoreversion
 
-; Tous les fichiers de l'application
+; Application
 Source: "dist\ListaState\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Documentation
@@ -34,11 +34,11 @@ Name: "{group}\Uninstall Lista State"; Filename: "{uninstallexe}"; IconFilename:
 Name: "{autodesktop}\Lista State"; Filename: "{app}\ListaState.exe"; IconFilename: "{app}\monicone.ico"; Tasks: desktopicon
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"; Flags: checkedonce
+Name: "desktopicon"; Description: "Create a desktop icon"; GroupDescription: "Additional icons:"
 Name: "associate_lst"; Description: "Associate .lst files with Lista State"; GroupDescription: "File associations:"; Flags: checkedonce
 
 [Registry]
-; Définir le type de fichier (HKCR - pour tous les utilisateurs)
+; Définir le type de fichier
 Root: HKCR; Subkey: ".lst"; ValueType: string; ValueName: ""; ValueData: "ListaState.File"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCR; Subkey: ".lst"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-lista-state"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCR; Subkey: ".lst"; ValueType: string; ValueName: "PerceivedType"; ValueData: "document"; Flags: uninsdeletevalue; Tasks: associate_lst
@@ -47,7 +47,7 @@ Root: HKCR; Subkey: ".lst"; ValueType: string; ValueName: "PerceivedType"; Value
 Root: HKCR; Subkey: "ListaState.File"; ValueType: string; ValueName: ""; ValueData: "Lista State Session File"; Flags: uninsdeletekey; Tasks: associate_lst
 Root: HKCR; Subkey: "ListaState.File"; ValueType: string; ValueName: "FriendlyTypeName"; ValueData: "Lista State Session"; Flags: uninsdeletekey; Tasks: associate_lst
 
-; Icône pour les fichiers .lst (même icône que l'application)
+; Icône pour les fichiers .lst
 Root: HKCR; Subkey: "ListaState.File\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\monicone.ico,0"; Flags: uninsdeletekey; Tasks: associate_lst
 
 ; Commande d'ouverture
@@ -56,7 +56,7 @@ Root: HKCR; Subkey: "ListaState.File\shell\open\command"; ValueType: string; Val
 ; Ajouter au menu "Ouvrir avec"
 Root: HKCR; Subkey: "Applications\ListaState.exe\SupportedTypes"; ValueType: string; ValueName: ".lst"; ValueData: ""; Flags: uninsdeletekey; Tasks: associate_lst
 
-; Pour l'utilisateur courant également (HKCU)
+; Pour l'utilisateur courant également
 Root: HKCU; Subkey: "Software\Classes\.lst"; ValueType: string; ValueName: ""; ValueData: "ListaState.File"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCU; Subkey: "Software\Classes\.lst"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-lista-state"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCU; Subkey: "Software\Classes\ListaState.File\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\monicone.ico,0"; Flags: uninsdeletekey; Tasks: associate_lst
@@ -84,7 +84,7 @@ begin
     RegDeleteKeyIncludingSubkeys(HKCR, 'ListaState.File');
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\.lst');
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\ListaState.File');
-
+    
     // Notifier Windows
     ShellExec('open', 'rundll32.exe', 'shell32.dll,UpdatePerUserSystemNotifications', '', SW_HIDE, ewNoWait, 0);
   end;
