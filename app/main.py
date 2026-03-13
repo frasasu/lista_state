@@ -109,6 +109,9 @@ class ManagerApp:
             if not file_path:
                 return {"cancelled": True}
 
+            if isinstance(file_path, Tuple):
+                file_path = file_path[0]
+
             if not file_path.endswith(".lst"):
                 file_path += ".lst"
 
