@@ -53,7 +53,7 @@ class Evaluator:
             elif isinstance(v, str):
                 try:
                     v_stripped = v.strip()
-                    if v_stripped and (v_stripped.replace('.', '').replace('-', '').isdigit() or 
+                    if v_stripped and (v_stripped.replace('.', '').replace('-', '').isdigit() or
                                      'e' in v_stripped.lower()):
                         if '.' in v_stripped or 'e' in v_stripped.lower():
                             result.append(float(v_stripped))
@@ -265,7 +265,7 @@ class Evaluator:
             elif "expression" in arg:
                 expr_result = self.evaluate_expression(arg["expression"], new_df)
                 alias = arg.get("alias", f"col_{len(selected_cols)}")
-                # Forcer la conversion en liste de la bonne longueur
+
                 expr_result = ensure_list_length(expr_result, len(new_df))
                 new_df[alias] = expr_result
                 selected_cols.append(alias)
@@ -296,7 +296,7 @@ class Evaluator:
             expr = feature.get("expression")
 
             result = self.evaluate_expression(expr, new_df)
-            # Forcer la conversion en liste de la bonne longueur
+
             result = ensure_list_length(result, current_len)
             new_df[name] = result
 
@@ -316,7 +316,7 @@ class Evaluator:
         group_by_cols = df._attrs.get('group_by_columns', [])
 
         if not group_by_cols:
-            # Agrégation globale
+
             result_dict = {}
             for agg_item in aggregations:
                 name = agg_item.get("name")
@@ -344,45 +344,43 @@ class Evaluator:
 
             return SimpleDataFrame({k: [v] for k, v in result_dict.items()})
 
-        # Agrégation par groupe
+
         groups = {}
-        
-        # Créer les groupes
+
         for i in range(len(df)):
             key_parts = []
             for col in group_by_cols:
                 val = df[col][i]
                 key_parts.append(str(val) if val is not None else "None")
             key = tuple(key_parts)
-            
+
             if key not in groups:
                 groups[key] = []
             groups[key].append(i)
 
-        # Préparer le résultat
+
         result = {col: [] for col in group_by_cols}
-        
+
         for agg_item in aggregations:
             name = agg_item.get("name")
             result[name] = []
 
-        # Calculer les agrégations pour chaque groupe
+
         for key, indices in groups.items():
-            # Ajouter les clés
+
             for i, col in enumerate(group_by_cols):
-                # Convertir la clé en valeur appropriée
+
                 val = key[i]
                 if val == "None":
                     result[col].append(None)
                 else:
-                    # Essayer de convertir en nombre si possible
                     num_val = to_numeric(val)
                     if num_val is not None and not isinstance(num_val, str):
                         result[col].append(num_val)
                     else:
                         result[col].append(val)
 
-            # Calculer les agrégations
+
             for agg_item in aggregations:
                 name = agg_item.get("name")
                 func_call = agg_item.get("function", {})
@@ -392,10 +390,9 @@ class Evaluator:
                 if args and len(args) > 0:
                     col_name = self.extract_column_name(args[0])
                     if col_name and col_name in df.columns:
-                        # Récupérer les valeurs du groupe
+
                         values = [df[col_name][i] for i in indices]
-                        
-                        # Convertir en numérique
+
                         numeric_values = []
                         for v in values:
                             if v is not None:
@@ -405,8 +402,7 @@ class Evaluator:
                                     num_v = to_numeric(v)
                                     if isinstance(num_v, (int, float)):
                                         numeric_values.append(num_v)
-                        
-                        # Appliquer la fonction
+
                         if func_name == "SUM":
                             result[name].append(sum(numeric_values) if numeric_values else 0)
                         elif func_name == "AVG" or func_name == "MEAN":
@@ -590,7 +586,7 @@ class Evaluator:
                         left_num.append(l_num if l_num is not None else l)
                     else:
                         left_num.append(l)
-                
+
                 for r in right:
                     if isinstance(r, str):
                         r_num = to_numeric(r)
@@ -629,7 +625,7 @@ class Evaluator:
 
                 if not isinstance(left, list):
                     left = [left] * len(df)
-                
+
                 lower_val = lower[0] if isinstance(lower, list) and len(lower) > 0 else lower
                 upper_val = upper[0] if isinstance(upper, list) and len(upper) > 0 else upper
 
@@ -638,7 +634,7 @@ class Evaluator:
                     l_num = to_numeric(l) if isinstance(l, str) else l
                     lower_num = to_numeric(lower_val) if isinstance(lower_val, str) else lower_val
                     upper_num = to_numeric(upper_val) if isinstance(upper_val, str) else upper_val
-                    
+
                     if l_num is None or lower_num is None or upper_num is None:
                         result.append(False)
                     else:
@@ -649,7 +645,7 @@ class Evaluator:
                 left = self.evaluate_expression(condition.get("left"), df)
                 values = condition.get("values", [])
                 evaluated_values = [self.evaluate_expression(v, df) for v in values]
-                
+
                 flat_values = []
                 for val in evaluated_values:
                     if isinstance(val, list):
@@ -733,7 +729,7 @@ class Evaluator:
                     for l, r in zip(left, right):
                         l_num = to_numeric(l) if isinstance(l, str) else l
                         r_num = to_numeric(r) if isinstance(r, str) else r
-                        
+
                         if l_num is None or r_num is None:
                             result.append(None)
                         elif operator == "+":
@@ -851,17 +847,17 @@ class Evaluator:
                         y_num = to_numeric(y)
                         if isinstance(x_num, (int, float)) and isinstance(y_num, (int, float)):
                             pairs.append((x_num, y_num))
-                    
+
                     if len(pairs) > 1:
                         xs = [p[0] for p in pairs]
                         ys = [p[1] for p in pairs]
                         mean_x = sum(xs) / len(xs)
                         mean_y = sum(ys) / len(ys)
-                        
+
                         num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
                         den_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
                         den_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
-                        
+
                         if den_x * den_y != 0:
                             return num / (den_x * den_y)
                 return 0
@@ -913,7 +909,6 @@ class Evaluator:
         if name == "RANK":
             result = [1] * len(df)
             if partition_by and all(col in df.columns for col in partition_by):
-                # Version simplifiée pour l'instant
                 pass
             return result
         elif name == "ROW_NUMBER":
@@ -932,7 +927,7 @@ class Evaluator:
             for wt in when_then:
                 condition = self.evaluate_filter_condition(wt.get("when"), df)
                 then_val = self.evaluate_expression(wt.get("then"), df)
-                # FORCER la conversion en liste de la bonne longueur
+
                 then_val = ensure_list_length(then_val, len(df))
 
                 for i, cond in enumerate(condition):
@@ -941,7 +936,7 @@ class Evaluator:
 
             if else_val is not None:
                 else_result = self.evaluate_expression(else_val, df)
-                # FORCER la conversion en liste de la bonne longueur
+
                 else_result = ensure_list_length(else_result, len(df))
                 for i in range(len(result)):
                     if result[i] is None:
@@ -1051,17 +1046,17 @@ class Evaluator:
                         y_num = to_numeric(y)
                         if isinstance(x_num, (int, float)) and isinstance(y_num, (int, float)):
                             pairs.append((x_num, y_num))
-                    
+
                     if len(pairs) > 1:
                         xs = [p[0] for p in pairs]
                         ys = [p[1] for p in pairs]
                         mean_x = sum(xs) / len(xs)
                         mean_y = sum(ys) / len(ys)
-                        
+
                         num = sum((x - mean_x) * (y - mean_y) for x, y in zip(xs, ys))
                         den_x = math.sqrt(sum((x - mean_x) ** 2 for x in xs))
                         den_y = math.sqrt(sum((y - mean_y) ** 2 for y in ys))
-                        
+
                         if den_x * den_y != 0:
                             return num / (den_x * den_y)
                 return None
