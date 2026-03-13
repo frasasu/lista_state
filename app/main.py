@@ -2,7 +2,6 @@ import webview
 import os
 import sys
 import zipfile
-import pandas as pd
 from pathlib import PurePosixPath
 import json
 from typing import Dict,Any
