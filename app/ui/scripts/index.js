@@ -145,47 +145,75 @@ class DataTableManager {
         }
     }
 
-    async ChoosePathNewSession() {
+
+async ChoosePathNewSession() {
     const nameInput = document.getElementById("name-session");
-    if (nameInput && nameInput.value) {
+    if (!nameInput || !nameInput.value) {
+        alert("Veuillez entrer un nom de session");
+        return;
+    }
+
+    try {
         const result = await pywebview.api.ChoosePathNewSession(nameInput.value);
 
-        if (result && result[0]) {
+        if (result && result.error) {
+            alert(`Erreur: ${result.error}`);
+            return;
+        }
+        if (result && result.cancelled) {
+            return;
+        }
 
-            this.core.sessionName = result[0];
-            this.core.payload = result[1];
-
-
-            const session_tiles = document.querySelectorAll(".session-tile-data");
-            session_tiles.forEach(tile => {
-                tile.innerHTML = `<div>Session - ${this.core.sessionName}</div>`;
-            });
-
-
-            const first_table = Object.keys(this.core.payload.tables)[0];
-            if (first_table) {
-                this.currentNameTable = first_table;
-                this.displayTable(first_table);
+        if (Array.isArray(result) && result.length === 2) {
+            const [name, data] = result;
+            if (name && data) {
+                await this.handleNewSession(name, data);
             }
-            this.displayListTable();
+            return;
+        }
 
-            if (window.analysisManager) {
+        if (result && result.success) {
+            await this.handleNewSession(result.name, result.data);
+        }
 
-                window.analysisManager.displayListAnalysis();
+    } catch (error) {
+        console.error("Erreur:", error);
+        alert("Une erreur est survenue lors de la création de la session");
+    }
+}
 
+async handleNewSession(name, data) {
 
-                const firstAnalysis = Object.keys(this.core.payload.analysis)[0];
-                if (firstAnalysis) {
-                    window.analysisManager.currentAnalysisName = firstAnalysis;
-                    window.analysisManager.displayAnalysis(firstAnalysis);
-                } else {
+    this.core.sessionName = name;
+    this.core.payload = data;
 
-                    window.analysisManager.editor.value = "";
-                    window.analysisManager.updateLineNumbers();
-                }
-            }
+    const session_tiles = document.querySelectorAll(".session-tile-data");
+    session_tiles.forEach(tile => {
+        tile.innerHTML = `<div>Session - ${name}</div>`;
+    });
+
+    const first_table = Object.keys(data.tables)[0];
+    if (first_table) {
+        this.currentNameTable = first_table;
+        this.displayTable(first_table);
+    }
+    this.displayListTable();
+
+    if (window.analysisManager) {
+        window.analysisManager.displayListAnalysis();
+        const firstAnalysis = Object.keys(data.analysis)[0];
+        if (firstAnalysis) {
+            window.analysisManager.currentAnalysisName = firstAnalysis;
+            window.analysisManager.displayAnalysis(firstAnalysis);
+        } else {
+            window.analysisManager.editor.value = "";
+            window.analysisManager.updateLineNumbers();
         }
     }
+
+    await this.core.save();
+
+    alert(`Session "${name}" créée avec succès !`);
 }
 
   async ChoosePathSessionLife() {
