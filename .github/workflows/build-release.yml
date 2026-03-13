@@ -54,7 +54,6 @@ jobs:
         run: |
           pyinstaller --name="ListaState" --windowed --icon="app/assets/monicone.ico" --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
           
-          # Vérifier l'exécutable
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
             Write-Host "✅ Exécutable créé : $([math]::Round($size, 2)) MB"
@@ -77,34 +76,21 @@ jobs:
           Write-Host "🔨 Création de l'installateur..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
           
-          # Vérifier l'installateur
           $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
           if (Test-Path $installer) {
             $size = (Get-Item $installer).Length / 1MB
             Write-Host "✅ Installateur créé : $([math]::Round($size, 2)) MB"
           } else {
-            # Chercher d'autres fichiers exe
-            $files = Get-ChildItem -Path "installer" -Filter "*.exe"
-            if ($files.Count -gt 0) {
-              Write-Host "✅ Installateur trouvé: $($files[0].Name)"
-              $installer = $files[0].FullName
-              # Renommer si nécessaire
-              if ($files[0].Name -ne "ListaState_Setup_${{ env.VERSION }}.exe") {
-                Move-Item -Path $files[0].FullName -Destination "installer\ListaState_Setup_${{ env.VERSION }}.exe" -Force
-              }
-            } else {
-              Write-Error "❌ Échec de la création"
-              exit 1
-            }
+            Write-Error "❌ Échec de la création"
+            exit 1
           }
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ListaState-Installer  # Nom FIXE sans version
+          name: ListaState-Installer
           path: installer/ListaState_Setup_${{ env.VERSION }}.exe
           retention-days: 30
-          if-no-files-found: error
 
   create-release:
     name: Create GitHub Release
@@ -118,15 +104,11 @@ jobs:
       - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          name: ListaState-Installer  # Même nom que dans upload
+          name: ListaState-Installer
           path: artifacts
       
       - name: List downloaded files
-        run: |
-          echo "📁 Fichiers téléchargés :"
-          ls -la artifacts/
-          echo "Contenu :"
-          find artifacts/ -type f -exec ls -lh {} \;
+        run: ls -la artifacts/
       
       - name: Get version from tag
         id: version
@@ -135,44 +117,12 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "✅ Version : $VERSION"
       
-      - name: Rename installer with version (if needed)
-        run: |
-          if [ -f "artifacts/ListaState_Setup_${{ steps.version.outputs.version }}.exe" ]; then
-            echo "✅ Installateur déjà nommé correctement"
-          else
-            # Chercher le fichier exe
-            for file in artifacts/*.exe; do
-              if [ -f "$file" ]; then
-                mv "$file" "artifacts/ListaState_Setup_${{ steps.version.outputs.version }}.exe"
-                echo "✅ Installateur renommé"
-                break
-              fi
-            done
-          fi
-      
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: Lista State ${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
-          body: |
-            ## 🚀 Lista State ${{ steps.version.outputs.version }}
-            
-            ### 📦 Installation
-            1. Téléchargez l'installateur ci-dessous
-            2. Exécutez le fichier .exe
-            3. Suivez les instructions d'installation
-            
-            ### ✨ Nouveautés
-            - Version automatique générée par GitHub Actions
-            
-            ### 🔧 Configuration
-            - Python 3.11
-            - Windows 64-bit
-          files: |
-            artifacts/*.exe
+          files: artifacts/*.exe
           generate_release_notes: true
-          draft: false
-          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

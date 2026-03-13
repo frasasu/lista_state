@@ -17,7 +17,6 @@ WizardStyle=modern
 PrivilegesRequired=admin
 
 ; === MÉTADONNÉES POUR L'ASSOCIATION DE FICHIERS ===
-; Ces informations seront utilisées par Windows
 VersionInfoCompany=Université du Burundi
 VersionInfoDescription=Lista State - Statistical Data Analysis
 VersionInfoVersion={#VERSION}
@@ -49,8 +48,6 @@ Name: "associate_lst"; Description: "Associate .lst files with Lista State"; Gro
 
 [Registry]
 ; === ASSOCIATION ROBUSTE DE L'EXTENSION .lst ===
-; Cette section crée toutes les entrées nécessaires dans le registre Windows
-; pour que les fichiers .lst soient reconnus et ouverts avec Lista State
 
 ; ÉTAPE 1: Définir l'extension .lst
 Root: HKCR; Subkey: ".lst"; ValueType: string; ValueName: ""; ValueData: "ListaState.File"; Flags: uninsdeletevalue; Tasks: associate_lst
@@ -75,7 +72,6 @@ Root: HKCR; Subkey: "Applications\ListaState.exe\SupportedTypes"; ValueType: str
 Root: HKCR; Subkey: "ListaState.File"; ValueType: string; ValueName: "FriendlyAppName"; ValueData: "Lista State"; Flags: uninsdeletekey; Tasks: associate_lst
 
 ; === POUR L'UTILISATEUR COURANT ÉGALEMENT (HKCU) ===
-; Cela garantit que l'association fonctionne même sans droits admin
 Root: HKCU; Subkey: "Software\Classes\.lst"; ValueType: string; ValueName: ""; ValueData: "ListaState.File"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCU; Subkey: "Software\Classes\.lst"; ValueType: string; ValueName: "Content Type"; ValueData: "application/x-lista-state"; Flags: uninsdeletevalue; Tasks: associate_lst
 Root: HKCU; Subkey: "Software\Classes\ListaState.File\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\monicone.ico,0"; Flags: uninsdeletekey; Tasks: associate_lst
@@ -84,5 +80,3 @@ Root: HKCU; Subkey: "Software\Classes\ListaState.File\shell\open\command"; Value
 [Run]
 ; Option pour lancer l'application après installation
 Filename: "{app}\ListaState.exe"; Description: "Launch Lista State"; Flags: nowait postinstall
-
-; === PAS DE SECTION [CODE] - ZÉRO RISQUE D'ERREUR PASCAL ===
