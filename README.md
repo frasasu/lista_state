@@ -121,7 +121,7 @@ Transform eco_enriched [
     agg(
         pib_moyen = AVG(GDP),
         pib_total = SUM(GDP),
-        #pib_croissance = (MAX(GDP) - MIN(GDP)) * 100 / MIN(GDP),
+        pib_croissance = (MAX(GDP) - MIN(GDP)) * 100 / MIN(GDP),
         inflation_moyenne = AVG(Inflation),
         investissement_moyen = AVG(Investmest),
         balance_moyenne = AVG(balance_commerciale),

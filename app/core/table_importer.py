@@ -6,8 +6,7 @@ from typing import Dict, List, Optional, Tuple, Any
 
 class TableImporter:
     """
-    Importateur de fichiers CSV et Excel sans pandas.
-    À intégrer directement dans votre classe ManagerApp.
+    Importateur de fichiers CSV et Excel
     """
 
     def __init__(self, webview_instance):

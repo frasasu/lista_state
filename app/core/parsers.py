@@ -1,28 +1,35 @@
-from core import Lexer
-import re
-
 class Parser:
     def __init__(self, tokens):
         self.tokens = tokens
         self.pos = 0
         self.errors = []
 
+        # Types de fonctions existants
         self.function_types = [
-
             'SUM', 'AVG', 'MEAN', 'MEDIAN', 'MODE', 'COUNT', 'MIN', 'MAX',
             'STD', 'VAR', 'SKEW', 'KURT', 'QUANTILE', 'PERCENTILE', 'CORR',
-            'COV', 'CROSSTAB', 'FREQ', 'TOP', 'ENTROPY','RANK','ROW_NUMBER',
-
+            'COV', 'CROSSTAB', 'FREQ', 'TOP', 'ENTROPY', 'RANK', 'ROW_NUMBER',
+            
             'LOG', 'EXP', 'SQRT', 'ABS', 'ROUND', 'FLOOR', 'CEIL',
             'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'POWER', 'MOD',
-
+            
             'WORD_COUNT', 'SENTENCE_COUNT', 'TOP_WORDS', 'TOP_PHRASES',
             'SENTIMENT', 'SUBJECTIVITY', 'LDA', 'KEYPHRASES', 'NER',
             'COSINE_SIMILARITY',
-
+            
             'T_TEST', 'ANOVA', 'CHI2', 'MANN_WHITNEY', 'KRUSKAL',
             'KS_TEST', 'ADF_TEST', 'KPSS_TEST', 'ACF', 'PACF',
-            'DECOMPOSE', 'CUSUM', 'SEASONAL_STRENGTH', 'TREND', 'EXPONENTIAL_SMOOTHING'
+            'DECOMPOSE', 'CUSUM', 'SEASONAL_STRENGTH', 'TREND', 'EXPONENTIAL_SMOOTHING',
+            
+            # NOUVELLES FONCTIONS STATISTIQUES
+            'MOMENT', 'GINI', 'SKEWNESS', 'KURTOSIS', 'COVARIANCE',
+            'F_TEST', 'SHAPIRO', 'ANDERSON',
+            
+            # FONCTIONS DE DISTANCE
+            'EUCLIDEAN', 'MANHATTAN', 'COSINE', 'JACCARD',
+            
+            # FONCTIONS DE SÉRIES TEMPORELLES
+            'LAG', 'DIFF', 'PCT_CHANGE', 'MOVING_AVG', 'EWMA', 'AUTOCORR'
         ]
 
     def peek(self, offset=0):
@@ -72,6 +79,18 @@ class Parser:
                 ast["commands"].append(self.parse_transform())
             elif token["type"] in ["ANALYZE", "ANALYSE"]:
                 ast["commands"].append(self.parse_analyze())
+            elif token["type"] in ['VIZ','VISUALIZE']:
+                ast["commands"].append(self.parse_visualize())
+            elif token["type"] == "CLEAN":
+                ast["commands"].append(self.parse_clean())
+            elif token["type"] == "STATS":
+                ast["commands"].append(self.parse_stats())
+            elif token["type"] == "DESCRIBE":
+                ast["commands"].append(self.parse_describe())
+            elif token["type"] == "DESCRIBE_ALL":
+                ast["commands"].append(self.parse_describe_all())
+            elif token["type"] == "SUMMARY":
+                ast["commands"].append(self.parse_summary())
             elif token["type"] == "IF":
                 ast["commands"].append(self.parse_if())
             elif token["type"] == "FOR":
@@ -83,6 +102,8 @@ class Parser:
                 self.error(f"Expected top-level command but found {token['type']}({token['value']})", token)
 
         return ast, self.errors
+
+    # ========== COMMANDES EXISTANTES ==========
 
     def parse_load(self):
         node = {"type": "load", "properties": {}}
@@ -157,16 +178,41 @@ class Parser:
                 contents.append(self.parse_join())
             elif token_type == "HAVING":
                 contents.append(self.parse_having())
+            # NOUVELLES OPÉRATIONS DE NETTOYAGE
+            elif token_type == "DROP_NA":
+                contents.append(self.parse_drop_na())
+            elif token_type == "FILL_NA":
+                contents.append(self.parse_fill_na())
+            elif token_type == "REPLACE":
+                contents.append(self.parse_replace())
+            elif token_type == "CLIP":
+                contents.append(self.parse_clip())
+            elif token_type == "REMOVE_OUTLIERS":
+                contents.append(self.parse_remove_outliers())
+            elif token_type == "STANDARDIZE":
+                contents.append(self.parse_standardize())
+            elif token_type == "MIN_MAX_SCALE":
+                contents.append(self.parse_min_max_scale())
+            elif token_type == "ONE_HOT_ENCODE":
+                contents.append(self.parse_one_hot_encode())
+            elif token_type == "LABEL_ENCODE":
+                contents.append(self.parse_label_encode())
             return contents
 
         if self.peek() and self.peek()["type"] in ["SELECT", "DROP", "FILTER", "CREATE_FEATURE",
-                                                    "GROUP_BY", "AGG", "JOIN", "HAVING"]:
+                                                    "GROUP_BY", "AGG", "JOIN", "HAVING",
+                                                    "DROP_NA", "FILL_NA", "REPLACE", "CLIP",
+                                                    "REMOVE_OUTLIERS", "STANDARDIZE", "MIN_MAX_SCALE",
+                                                    "ONE_HOT_ENCODE", "LABEL_ENCODE"]:
             contents.append(self.parse_current_operation())
 
         while self.peek() and self.peek()["type"] == "COMMA":
             self.consume("COMMA")
             if self.peek() and self.peek()["type"] in ["SELECT", "DROP", "FILTER", "CREATE_FEATURE",
-                                                        "GROUP_BY", "AGG", "JOIN", "HAVING"]:
+                                                        "GROUP_BY", "AGG", "JOIN", "HAVING",
+                                                        "DROP_NA", "FILL_NA", "REPLACE", "CLIP",
+                                                        "REMOVE_OUTLIERS", "STANDARDIZE", "MIN_MAX_SCALE",
+                                                        "ONE_HOT_ENCODE", "LABEL_ENCODE"]:
                 contents.append(self.parse_current_operation())
 
         return contents
@@ -189,14 +235,510 @@ class Parser:
             return self.parse_join()
         elif token_type == "HAVING":
             return self.parse_having()
+        # NOUVELLES OPÉRATIONS
+        elif token_type == "DROP_NA":
+            return self.parse_drop_na()
+        elif token_type == "FILL_NA":
+            return self.parse_fill_na()
+        elif token_type == "REPLACE":
+            return self.parse_replace()
+        elif token_type == "CLIP":
+            return self.parse_clip()
+        elif token_type == "REMOVE_OUTLIERS":
+            return self.parse_remove_outliers()
+        elif token_type == "STANDARDIZE":
+            return self.parse_standardize()
+        elif token_type == "MIN_MAX_SCALE":
+            return self.parse_min_max_scale()
+        elif token_type == "ONE_HOT_ENCODE":
+            return self.parse_one_hot_encode()
+        elif token_type == "LABEL_ENCODE":
+            return self.parse_label_encode()
         else:
             self.error(f"Unexpected operation: {token_type}", self.peek())
+
+    # ========== COMMANDES DE NETTOYAGE ==========
+
+    def parse_drop_na(self):
+        """Parse drop_na(columns=['col1','col2'], how='any', thresh=5)"""
+        node = {"type": "drop_na", "params": {}}
+        self.consume("DROP_NA")
+        self.consume("LPAREN")
+
+        param_names = ['COLUMNS','HOW','THRESH','SUBSET']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+            elif param_name == "how":
+                node["params"]["how"] = self.consume_any(["ANY", "ALL"])["value"]
+            elif param_name == "thresh":
+                node["params"]["thresh"] = int(self.consume("NUMBER")["value"])
+            elif param_name == "subset":
+                node["params"]["columns"] = self.parse_list()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_fill_na(self):
+        """Parse fill_na(value=0, method='ffill', columns=['col1'])"""
+        node = {"type": "fill_na", "params": {}}
+        self.consume("FILL_NA")
+        self.consume("LPAREN")
+
+        param_names = ['VALUE','METHOD','COLUMNS']
+
+        has_value = False
+        has_method = False
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "value":
+                has_value = True
+                node["params"]["value"] = self.parse_literal()["value"]
+            elif param_name == "method":
+                has_method = True
+                node["params"]["method"] = self.consume_any(["FFILL", "BFILL"])["value"]
+            elif param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        if has_value and has_method:
+           self.error("Cannot specify both 'value' and 'method' in fill_na", self.peek(-1))
+
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_replace(self):
+        """Parse replace(to_replace=0, value=1, columns=['col1'])"""
+        node = {"type": "replace", "params": {}}
+        self.consume("REPLACE")
+        self.consume("LPAREN")
+
+        para_names = ['TO_REPLACE','VALUE','COLUMNS']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(para_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "to_replace":
+                node["params"]["to_replace"] = self.parse_literal()["value"]
+            elif param_name == "value":
+                node["params"]["value"] = self.parse_literal()["value"]
+            elif param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_clip(self):
+        """Parse clip(lower=0, upper=100, columns=['col1'])"""
+        node = {"type": "clip", "params": {}}
+        self.consume("CLIP")
+        self.consume("LPAREN")
+
+        param_names = ['LOWER','UPPER','COLUMNS']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "lower":
+                node["params"]["lower"] = float(self.consume("NUMBER")["value"])
+            elif param_name == "upper":
+                node["params"]["upper"] = float(self.consume("NUMBER")["value"])
+            elif param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_remove_outliers(self):
+        """Parse remove_outliers(column='col1', factor=1.5)"""
+        node = {"type": "remove_outliers", "params": {}}
+        self.consume("REMOVE_OUTLIERS")
+        self.consume("LPAREN")
+
+        param_names = ['COLUMN','FACTOR']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "column":
+                node["params"]["column"] = self.consume("IDENTIFIER")["value"]
+            elif param_name == "factor":
+                node["params"]["factor"] = float(self.consume("NUMBER")["value"])
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_standardize(self):
+        """Parse standardize(columns=['col1','col2'])"""
+        node = {"type": "standardize", "params": {}}
+        self.consume("STANDARDIZE")
+        self.consume("LPAREN")
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume('COLUMNS')["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_min_max_scale(self):
+        """Parse min_max_scale(columns=['col1','col2'], feature_range=(0,1))"""
+        node = {"type": "min_max_scale", "params": {}}
+        self.consume("MIN_MAX_SCALE")
+        self.consume("LPAREN")
+
+        param_names = ['COLUMNS','FEATURE_RANGE']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "columns":
+                node["params"]["columns"] = self.parse_list()
+            elif param_name == "feature_range":
+                self.consume("LPAREN")
+                min_val = float(self.consume("NUMBER")["value"])
+                self.consume("COMMA")
+                max_val = float(self.consume("NUMBER")["value"])
+                self.consume("RPAREN")
+                node["params"]["feature_range"] = (min_val, max_val)
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_one_hot_encode(self):
+        """Parse one_hot_encode(column='col1', prefix='cat', drop_first=False)"""
+        node = {"type": "one_hot_encode", "params": {}}
+        self.consume("ONE_HOT_ENCODE")
+        self.consume("LPAREN")
+
+        param_names = ['COLUMN','PREFIX','DROP_FIRST']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "column":
+                node["params"]["column"] = self.consume("IDENTIFIER")["value"]
+            elif param_name == "prefix":
+                node["params"]["prefix"] = self.parse_string_or_identifier()
+            elif param_name == "drop_first":
+                node["params"]["drop_first"] = self.consume("TRUE")["value"] == "TRUE" if self.peek()["type"] == "TRUE" else False
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    def parse_label_encode(self):
+        """Parse label_encode(column='col1', prefix='enc')"""
+        node = {"type": "label_encode", "params": {}}
+        self.consume("LABEL_ENCODE")
+        self.consume("LPAREN")
+
+        param_names = ['COLUMN','PREFIX']
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(param_names)["value"]
+            self.consume("ASSIGN")
+
+            if param_name == "column":
+                node["params"]["column"] = self.consume("IDENTIFIER")["value"]
+            elif param_name == "prefix":
+                node["params"]["prefix"] = self.parse_string_or_identifier()
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        self.consume("RPAREN")
+        return node
+
+    # ========== NOUVELLE COMMANDE CLEAN ==========
+
+    def parse_clean(self):
+        """
+        Parse CLEAN command for data cleaning operations.
+        Clean est une commande top-level qui applique plusieurs opérations de nettoyage.
+        Syntax: CLEAN target [ operations ]
+        """
+        node = {"type": "clean", "target": None, "operations": []}
+        self.consume("CLEAN")
+
+        # Cible (table)
+        node["target"] = self.consume("IDENTIFIER")["value"]
+
+        # Opérations de nettoyage
+        if self.peek() and self.peek()["type"] == "LBRACKET":
+            self.consume("LBRACKET")
+            node["operations"] = self.parse_clean_operations()
+            self.consume("RBRACKET")
+
+        return node
+
+    def parse_clean_operations(self):
+        """Parse les opérations à l'intérieur d'une commande CLEAN"""
+        operations = []
+
+        while self.peek() and self.peek()["type"] != "RBRACKET":
+            token = self.peek()
+
+            if token["type"] == "DROP_NA":
+                operations.append(self.parse_drop_na())
+            elif token["type"] == "FILL_NA":
+                operations.append(self.parse_fill_na())
+            elif token["type"] == "REPLACE":
+                operations.append(self.parse_replace())
+            elif token["type"] == "CLIP":
+                operations.append(self.parse_clip())
+            elif token["type"] == "REMOVE_OUTLIERS":
+                operations.append(self.parse_remove_outliers())
+            elif token["type"] == "STANDARDIZE":
+                operations.append(self.parse_standardize())
+            elif token["type"] == "MIN_MAX_SCALE":
+                operations.append(self.parse_min_max_scale())
+            elif token["type"] == "ONE_HOT_ENCODE":
+                operations.append(self.parse_one_hot_encode())
+            elif token["type"] == "LABEL_ENCODE":
+                operations.append(self.parse_label_encode())
+            else:
+                self.error(f"Unexpected operation in CLEAN: {token['type']}", token)
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        return operations
+
+    # ========== NOUVELLE COMMANDE STATS ==========
+
+    def parse_stats(self):
+        """Parse STATS command for advanced statistics"""
+        node = {"type": "stats", "target": None, "operations": []}
+        self.consume("STATS")
+        node["target"] = self.consume("IDENTIFIER")["value"]
+
+        if self.peek() and self.peek()["type"] == "LBRACKET":
+            self.consume("LBRACKET")
+            node["operations"] = self.parse_stats_operations()
+            self.consume("RBRACKET")
+
+        return node
+
+    def parse_stats_operations(self):
+        """Parse operations inside STATS command"""
+        operations = []
+
+        while self.peek() and self.peek()["type"] != "RBRACKET":
+            token = self.peek()
+
+            op = {}
+
+            # Avec assignation (result = FUNCTION(...))
+            if token["type"] == "IDENTIFIER" and self.peek(1) and self.peek(1)["type"] == "ASSIGN":
+                op["variable"] = self.consume("IDENTIFIER")["value"]
+                self.consume("ASSIGN")
+                op["expression"] = self.parse_expression()
+            else:
+                op["expression"] = self.parse_expression()
+
+            operations.append(op)
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        return operations
+
+    # ========== NOUVELLE COMMANDE VISUALIZE ==========
+
+    def parse_visualize(self):
+        """Parse VISUALIZE command for generating charts"""
+        node = {"type": "visualize", "chart_type": None, "target": None, "params": {}}
+        self.consume_any(['VIZ','VISUALIZE'])
+
+        # Type de graphique
+        chart_types = ["HISTOGRAM", "BAR_CHART", "SCATTER", "LINE_CHART", "BOX_PLOT", 
+                       "VIOLIN_PLOT", "HEATMAP", "QQ_PLOT", "ACF_PLOT", "PIE_CHART"]
+        node["chart_type"] = self.consume_any(chart_types)["value"]
+
+        # Cible (table)
+        node["target"] = self.consume("IDENTIFIER")["value"]
+
+        # Paramètres optionnels
+        if self.peek() and self.peek()["type"] == "LPAREN":
+            self.consume("LPAREN")
+            node["params"] = self.parse_viz_params()
+            self.consume("RPAREN")
+
+        # Options WITH
+        if self.peek() and self.peek()["type"] == "WITH":
+            node["options"] = self.parse_with_options()
+
+        return node
+
+    def parse_viz_params(self):
+        """Parse visualization parameters"""
+        params = {}
+
+        viz_params_tokens = ["BINS","WIDTH", "HEIGHT","SIZE","ALPHA","FACTOR","TITLE",
+                             "XLABEL","YLABEL","COLOR","CMAP","COLORS","STACKED","MARKERS",
+                             "DENSITY","GRID",  "LEGEND","COLUMNS", "COLUMN","X","Y","DIST","LABELS","VALUES",'SHOW_PERCENT']
+
+        while self.peek() and self.peek()["type"] != "RPAREN":
+            param_name = self.consume_any(viz_params_tokens)["value"]
+            self.consume("ASSIGN")
+
+            if param_name in ["bins", "width", "height", "size"]:
+                params[param_name] = int(self.consume("NUMBER")["value"])
+            elif param_name in ["alpha", "factor"]:
+                params[param_name] = float(self.consume("FLOAT")["value"])
+            elif param_name in ["title", "xlabel", "ylabel", "color", "cmap"]:
+                params[param_name] = self.parse_string_or_identifier()
+            elif param_name in ["colors"]:
+                params[param_name] = self.parse_list()
+            elif param_name in ["stacked", "markers", "density", "grid", "legend"]:
+                token = self.peek()
+                if token["type"] == "TRUE":
+                    params[param_name] = True
+                    self.consume("TRUE")
+                elif token["type"] == "FALSE":
+                    params[param_name] = False
+                    self.consume("FALSE")
+                else:
+                    params[param_name] = self.consume("IDENTIFIER")["value"] == "true"
+            elif param_name == "x" or param_name == "y":
+                params[param_name] = self.consume("IDENTIFIER")["value"]
+            elif param_name in ['values','labels','show_percent']:
+                params[param_name] = self.consume("IDENTIFIER")["value"]
+            elif param_name == 'columns':
+                params[param_name] = self.parse_list()
+            elif param_name == "column":
+                params[param_name] = self.consume("IDENTIFIER")["value"]
+
+            if self.peek() and self.peek()["type"] == "COMMA":
+                self.consume("COMMA")
+
+        return params
+
+    # ========== NOUVELLES COMMANDES DESCRIBE, DESCRIBE_ALL, SUMMARY ==========
+
+    def parse_describe(self):
+        """
+        Parse DESCRIBE command for descriptive statistics.
+        Syntax: DESCRIBE target [ columns ] [ with options ]
+        """
+        node = {"type": "describe", "target": None, "columns": None, "options": {}}
+        self.consume("DESCRIBE")
+        
+        # Cible (table)
+        node["target"] = self.consume("IDENTIFIER")["value"]
+        
+        # Colonnes optionnelles entre crochets
+        if self.peek() and self.peek()["type"] == "LBRACKET":
+            self.consume("LBRACKET")
+            node["columns"] = self.parse_describe_columns()
+            self.consume("RBRACKET")
+        
+        # Options WITH
+        if self.peek() and self.peek()["type"] == "WITH":
+            node["options"] = self.parse_with_options()
+        
+        return node
+
+    def parse_describe_columns(self):
+        """Parse la liste des colonnes pour DESCRIBE"""
+        columns = []
+        
+        # Première colonne
+        token = self.peek()
+        if token["type"] == "IDENTIFIER":
+            columns.append(self.consume("IDENTIFIER")["value"])
+        elif token["type"] == "STRING":
+            columns.append(self.strip_quotes(self.consume("STRING")["value"]))
+        else:
+            self.error("Expected column name", token)
+        
+        # Colonnes supplémentaires séparées par des virgules
+        while self.peek() and self.peek()["type"] == "COMMA":
+            self.consume("COMMA")
+            token = self.peek()
+            if token["type"] == "IDENTIFIER":
+                columns.append(self.consume("IDENTIFIER")["value"])
+            elif token["type"] == "STRING":
+                columns.append(self.strip_quotes(self.consume("STRING")["value"]))
+            else:
+                self.error("Expected column name", token)
+        
+        return columns
+
+    def parse_describe_all(self):
+        """
+        Parse DESCRIBE_ALL command for complete statistics.
+        Syntax: DESCRIBE_ALL target [ with options ]
+        """
+        node = {"type": "describe_all", "target": None, "options": {}}
+        self.consume("DESCRIBE_ALL")
+        
+        # Cible (table)
+        node["target"] = self.consume("IDENTIFIER")["value"]
+        
+        # Options WITH
+        if self.peek() and self.peek()["type"] == "WITH":
+            node["options"] = self.parse_with_options()
+        
+        return node
+
+    def parse_summary(self):
+        """
+        Parse SUMMARY command for DataFrame summary.
+        Syntax: SUMMARY target
+        """
+        node = {"type": "summary", "target": None}
+        self.consume("SUMMARY")
+        
+        # Cible (table)
+        node["target"] = self.consume("IDENTIFIER")["value"]
+        
+        return node
+
+    # ========== FONCTIONS EXISTANTES ==========
 
     def parse_select(self):
         node = {"type": "select", "args": []}
         self.consume("SELECT")
         self.consume("LPAREN")
-
 
         arg = self.parse_select_arg()
         node["args"].append(arg)
@@ -289,7 +831,6 @@ class Parser:
 
         op_token = self.peek()
 
-
         if op_token["type"] == "BETWEEN":
             self.consume("BETWEEN")
             lower = self.parse_filter_value()
@@ -301,7 +842,6 @@ class Parser:
                 "lower": lower,
                 "upper": upper
             }
-
 
         if op_token["type"] == "IN":
             self.consume("IN")
@@ -316,7 +856,6 @@ class Parser:
                 "left": left,
                 "values": values
             }
-
 
         if op_token["type"] == "LIKE":
             operator = self.consume("LIKE")["value"]
@@ -343,7 +882,6 @@ class Parser:
         token = self.peek()
         if not token:
             self.error("Expected value in filter condition", None)
-
 
         if token["type"] in self.function_types:
             return self.parse_function_call()
@@ -642,8 +1180,9 @@ class Parser:
         item["name"] = self.consume("IDENTIFIER")["value"]
         self.consume("ASSIGN")
 
-        func = self.parse_function_call()
-        item["function"] = func
+        if self.peek():
+            expr = self.parse_expression()
+            item["expression"] = expr
 
         return item
 
@@ -655,21 +1194,25 @@ class Parser:
 
         node["table"] = self.consume("IDENTIFIER")["value"]
 
-        while self.peek() and self.peek()["type"] != "RPAREN":
-            if self.peek()["type"] == "COMMA":
-                self.consume("COMMA")
+        self.consume("COMMA")
+        self.consume("ON")
+        self.consume("ASSIGN")
+        node["on"] = {}
+        left = node["on"]["left_on"] = self.strip_quotes(self.consume_any(["STRING","IDENTIFIER"])["value"])
+        lone = True
+        if self.peek() and self.peek()["type"] == "COLON":
+            lone = False
+            self.consume("COLON")
+            node["on"]["right_on"] = self.strip_quotes(self.consume_any(["STRING","IDENTIFIER"])["value"])
 
-            param_name = self.consume("IDENTIFIER")["value"]
+        if lone == True:
+            node['on']["right_on"] = left
+
+        if self.peek() and self.peek()["type"] == "COMMA":
+            self.consume("COMMA")
+            self.consume("TYPE")
             self.consume("ASSIGN")
-
-            if param_name == "on":
-                node["on"] = self.parse_filter_expression()
-            elif param_name == "type":
-                node["type"] = self.parse_string_or_identifier()
-            elif param_name == "suffix":
-                node["suffix"] = self.parse_string_or_identifier()
-            elif param_name == "columns":
-                node["columns"] = self.parse_list()
+            node["how"] = self.consume_any(["INNER","LEFT","RIGHT","OUTER"])["value"]
 
         self.consume("RPAREN")
         return node
@@ -786,20 +1329,22 @@ class Parser:
         while self.peek() and self.peek()["type"] != "RBRACKET":
             token = self.peek()
 
+            op = {}
+
             if token["type"] == "IDENTIFIER":
 
                 if self.peek(1) and self.peek(1)["type"] == "ASSIGN":
 
                     var_name = self.consume("IDENTIFIER")["value"]
                     self.consume("ASSIGN")
-                    func = self.parse_function_call()
-                    func["variable"] = var_name
-                    operations.append(func)
-            elif token["type"] in self.function_types:
-
-                operations.append(self.parse_function_call())
+                    expr = self.parse_expression()
+                    op["variable"] = var_name
+                    op["expression"] = expr
+                    operations.append(op)
             else:
-                self.error(f"Expected function call in analyze operations, got {token['type']}", token)
+                expr = self.parse_expression()
+                op["expression"] = expr
+                operations.append(op)
 
 
             if self.peek() and self.peek()["type"] == "COMMA":
@@ -812,14 +1357,16 @@ class Parser:
         options = {}
         self.consume("WITH")
 
-        opt_name = self.consume_any(["SHOW"])["value"]
+        opt_names = ["SHOW", "FORMAT", "TITLE", "WIDTH", "HEIGHT", "SAVE", "DETAILED"]
+        
+        opt_name = self.consume_any(opt_names)["value"]
         self.consume("ASSIGN")
         opt_value = self.parse_literal()["value"]
         options[opt_name] = opt_value
 
         while self.peek() and self.peek()["type"] == "COMMA":
             self.consume("COMMA")
-            opt_name = self.consume_any(['FORMAT'])["value"]
+            opt_name = self.consume_any(opt_names)["value"]
             self.consume("ASSIGN")
             opt_value = self.parse_literal()["value"]
             options[opt_name] = opt_value
@@ -839,6 +1386,18 @@ class Parser:
                 commands.append(self.parse_load())
             elif token["type"] in ["ANALYZE", "ANALYSE"]:
                 commands.append(self.parse_analyze())
+            elif token["type"] == "VIZ":
+                commands.append(self.parse_visualize())
+            elif token["type"] == "STATS":
+                commands.append(self.parse_stats())
+            elif token["type"] == "DESCRIBE":
+                commands.append(self.parse_describe())
+            elif token["type"] == "DESCRIBE_ALL":
+                commands.append(self.parse_describe_all())
+            elif token["type"] == "SUMMARY":
+                commands.append(self.parse_summary())
+            elif token["type"] == "CLEAN":
+                commands.append(self.parse_clean())
             elif token["type"] == "IF":
                 commands.append(self.parse_if())
             elif token["type"] == "FOR":
