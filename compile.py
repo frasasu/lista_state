@@ -3,7 +3,7 @@
 """
 Script de compilation Cython pour proteger le code Python
 Compile TOUS les fichiers .py en .pyd (y compris assets.py)
-Version corrigee avec creation des dossiers necessaires
+Version corrigee avec creation des dossiers avant copie
 """
 
 import os
@@ -109,8 +109,14 @@ def main():
     print(f"[INFO] Dossier de sortie cree: {OUTPUT_DIR}")
     
     # Creer le dossier core dans OUTPUT_DIR pour les fichiers core
-    (OUTPUT_DIR / "core").mkdir(parents=True, exist_ok=True)
-    print(f"[INFO] Dossier core cree: {OUTPUT_DIR / 'core'}")
+    core_output_dir = OUTPUT_DIR / "core"
+    core_output_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Dossier core cree: {core_output_dir}")
+    
+    # Creer le dossier core dans le repertoire courant pour la copie
+    current_core_dir = PROJECT_ROOT / "core"
+    current_core_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Dossier core courant cree: {current_core_dir}")
     
     # Trouver tous les fichiers à compiler
     py_files = find_all_py_files()
@@ -175,29 +181,35 @@ def main():
                 # Determiner la destination
                 rel_path = compiled_file.relative_to(build_lib_dir)
                 if 'core' in str(rel_path):
-                    target_dir = OUTPUT_DIR / "core"
+                    target_dir = core_output_dir
                 else:
                     target_dir = OUTPUT_DIR
                 
                 target_dir.mkdir(parents=True, exist_ok=True)
                 target_file = target_dir / compiled_file.name
+                
+                # Supprimer si existe
+                if target_file.exists():
+                    target_file.unlink()
+                
                 shutil.move(str(compiled_file), str(target_file))
                 print(f"   [MOV] {compiled_file.name} -> {target_file}")
                 compiled_count += 1
         
-        # Chercher aussi dans app/ directement
+        # Chercher aussi dans le repertoire courant (pour les fichiers dans core/)
         for pattern in ['*.pyd', '*.so']:
-            for compiled_file in APP_DIR.glob(f'**/{pattern}'):
+            for compiled_file in PROJECT_ROOT.glob(f'**/{pattern}'):
                 if 'core_compiled' not in str(compiled_file) and 'build' not in str(compiled_file):
-                    rel_path = compiled_file.relative_to(APP_DIR)
-                    if 'core' in str(rel_path) and compiled_file.parent.name == 'core':
-                        target_dir = OUTPUT_DIR / "core"
+                    # Determiner la destination
+                    if compiled_file.parent.name == 'core' or 'core' in str(compiled_file.parent):
+                        target_dir = core_output_dir
                     else:
                         target_dir = OUTPUT_DIR
                     
                     target_dir.mkdir(parents=True, exist_ok=True)
                     target_file = target_dir / compiled_file.name
                     
+                    # Supprimer si existe
                     if target_file.exists():
                         target_file.unlink()
                     
@@ -238,13 +250,22 @@ def main():
             shutil.rmtree(build_dir)
             print("[INFO] Nettoyage du dossier build")
         
+        # Nettoyer le dossier core courant
+        if current_core_dir.exists():
+            try:
+                shutil.rmtree(current_core_dir)
+                print("[INFO] Nettoyage du dossier core courant")
+            except:
+                pass
+        
         print(f"\n[OK] Compilation reussie! {compiled_count} fichiers compiles dans {OUTPUT_DIR}")
         
         # Afficher les fichiers generes
         print("\n[INFO] Fichiers compiles generes:")
         for f in OUTPUT_DIR.glob('**/*.pyd'):
             size = f.stat().st_size / 1024
-            print(f"   - {f.relative_to(OUTPUT_DIR)} ({size:.2f} KB)")
+            rel_path = f.relative_to(OUTPUT_DIR)
+            print(f"   - {rel_path} ({size:.2f} KB)")
         
         print(f"\n[INFO] Script loader: {loader_file}")
         
