@@ -112,6 +112,20 @@ jobs:
             exit 1
           }
       
+      - name: Clean previous build
+        shell: pwsh
+        run: |
+          Write-Host "Cleaning previous builds..."
+          if (Test-Path "dist") {
+            Remove-Item -Path "dist" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "   Removed dist directory"
+          }
+          if (Test-Path "build") {
+            Remove-Item -Path "build" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "   Removed build directory"
+          }
+          Write-Host "Cleanup completed"
+      
       - name: Prepare PyInstaller structure
         shell: pwsh
         run: |
@@ -124,18 +138,21 @@ jobs:
           Write-Host "   Directories created"
           
           # Copier les fichiers core depuis core_compiled/core/
-          if (Test-Path "app\core_compiled\core\*.pyd") {
+          $coreFiles = Get-ChildItem -Path "app\core_compiled\core" -Filter "*.pyd" -ErrorAction SilentlyContinue
+          if ($coreFiles) {
             Copy-Item -Path "app\core_compiled\core\*.pyd" -Destination "dist\ListaState\app\core\" -Force
             Write-Host "   Core .pyd files copied"
           }
           
           # Copier les fichiers principaux depuis core_compiled/
-          if (Test-Path "app\core_compiled\main*.pyd") {
+          $mainFiles = Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" -ErrorAction SilentlyContinue
+          if ($mainFiles) {
             Copy-Item -Path "app\core_compiled\main*.pyd" -Destination "dist\ListaState\app\core\" -Force
             Write-Host "   main.pyd copied"
           }
           
-          if (Test-Path "app\core_compiled\assets*.pyd") {
+          $assetsFiles = Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" -ErrorAction SilentlyContinue
+          if ($assetsFiles) {
             Copy-Item -Path "app\core_compiled\assets*.pyd" -Destination "dist\ListaState\app\core\" -Force
             Write-Host "   assets.pyd copied"
           }
@@ -186,6 +203,8 @@ jobs:
             --exclude-module="Cython.Compiler" `
             --exclude-module="setuptools" `
             --exclude-module="distutils" `
+            --clean `
+            --noconfirm `
             run.py
           
           if (Test-Path "dist\ListaState\ListaState.exe") {
