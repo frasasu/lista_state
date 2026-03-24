@@ -72,7 +72,7 @@ class DataTableManager {
             return null;  // Valeur manquante
         }
         if (textContent === "␣") {
-            return "";    // Chaîne vide intentionnelle
+            return null;    // Chaîne vide intentionnelle
         }
         return textContent;  // Valeur normale
     }
@@ -113,10 +113,10 @@ class DataTableManager {
             for (let c = 0; c < length_columns; c++) {
                 let cell = document.createElement("td");
                 const value = rows[r][c];
-                
+
                 // Formatage spécial pour null et chaîne vide
                 cell.textContent = this.formatCellValue(value);
-                
+
                 // Styling optionnel pour distinguer
                 if (value === null) {
                     cell.style.color = "#999";
@@ -124,7 +124,7 @@ class DataTableManager {
                 } else if (value === "") {
                     cell.style.color = "#ccc";
                 }
-                
+
                 cell.contentEditable = true;
                 row.appendChild(cell);
             }
@@ -434,7 +434,7 @@ class DataTableManager {
                     }
                 }
             }
-            
+
             this.displayTable(this.currentNameTable);
             await this.core.save();
 
@@ -605,7 +605,7 @@ class DataTableManager {
             for (let colIndex = 0; colIndex < nbColumns; colIndex++) {
                 const cellIndex = rowIndex * nbColumns + colIndex;
                 const cellText = editableCells[cellIndex]?.textContent;
-                
+
                 // Utiliser parseCellValue pour interpréter l'affichage
                 const cellValue = this.parseCellValue(cellText);
                 changedDatas[columnsNames[colIndex]].push(cellValue);
@@ -614,7 +614,7 @@ class DataTableManager {
 
         this.core.payload.tables[this.currentNameTable] = changedDatas;
         this.displayTable(this.currentNameTable);
-        
+
         pywebview.api.save_as(this.datas);
         document.getElementById("modal_table_utils").style.display = "none";
         console.log("Changements sauvegardés avec succès !", changedDatas);
