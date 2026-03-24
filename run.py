@@ -19,41 +19,41 @@ if sys.platform == 'win32':
 APP_DIR = Path(__file__).parent / "app"
 sys.path.insert(0, str(APP_DIR))
 
+# Ajouter le dossier core_compiled au PYTHONPATH pour les modules compiles
+CORE_COMPILED_DIR = APP_DIR / "core_compiled"
+if CORE_COMPILED_DIR.exists():
+    sys.path.insert(0, str(CORE_COMPILED_DIR))
+    print(f"[INFO] Compiled modules path: {CORE_COMPILED_DIR}")
+
 # Variable pour suivre si nous utilisons les modules compiles
 using_compiled = False
-
-# Importer le loader qui va charger les modules compiles
-try:
-    from loader import load_compiled_modules
-    load_compiled_modules()
-    using_compiled = True
-    print("[INFO] Using compiled modules")
-except ImportError as e:
-    print(f"[WARN] Loader not found: {e}")
-    print("[INFO] Falling back to source files")
-
-# Importer main (compiled or source)
 ListaStateApp = None
 run = None
 
-# Essayer d'importer depuis les modules compiles
-if using_compiled:
-    try:
-        from main import ListaStateApp, run
-        print("[INFO] Main module loaded from compiled .pyd")
-    except ImportError as e:
-        print(f"[WARN] Could not import compiled main: {e}")
-        using_compiled = False
+# Essayer d'importer depuis les modules compiles (main.pyd est dans core_compiled)
+try:
+    # main.pyd est dans core_compiled, donc on l'importe directement
+    from app.main import ListaStateApp, run
+    using_compiled = True
+    print("[INFO] Main module loaded from compiled .pyd")
+except ImportError as e:
+    print(f"[WARN] Could not import compiled main: {e}")
+    using_compiled = False
 
-# Fallback vers les sources
+# Fallback vers les sources si la compilation a echoue
 if not using_compiled:
     try:
-        # Ajouter le chemin pour les sources
-        sys.path.insert(0, str(Path(__file__).parent))
+        # Supprimer le chemin core_compiled pour eviter les conflits
+        if str(CORE_COMPILED_DIR) in sys.path:
+            sys.path.remove(str(CORE_COMPILED_DIR))
+        
+        # Importer depuis les sources
         from app.main import ListaStateApp, run
         print("[INFO] Main module loaded from source files")
     except ImportError as e:
         print(f"[ERROR] Could not import main module: {e}")
+        print("[ERROR] Make sure the application structure is correct")
+        print(f"[ERROR] Python path: {sys.path}")
         sys.exit(1)
 
 # Lancer l'application
