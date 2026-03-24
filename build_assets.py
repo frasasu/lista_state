@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Script pour générer le fichier assets.py à partir du fichier HTML
-Version corrigée sans emojis pour compatibilité GitHub Actions
+Script pour générer le fichier assets.py avec découpage des chaînes
+Version optimisée pour la compilation Cython
 """
 
 import sys
@@ -30,29 +30,48 @@ def read_html_file():
     with open(HTML_FILE, 'r', encoding='utf-8') as f:
         return f.read()
 
+def split_html_for_cython(html_content, chunk_size=50000):
+    """
+    Découpe le HTML en plusieurs chaînes pour éviter les problèmes avec Cython
+    """
+    chunks = []
+    for i in range(0, len(html_content), chunk_size):
+        chunks.append(html_content[i:i+chunk_size])
+    return chunks
+
 def generate_assets_py(html_content):
-    """Génère le fichier assets.py avec le contenu HTML"""
+    """Génère le fichier assets.py avec découpage des chaînes pour Cython"""
+    
+    chunks = split_html_for_cython(html_content)
     
     template = '''# -*- coding: utf-8 -*-
 """
 Fichier genere automatiquement par build_assets.py
 Ne pas modifier manuellement
 Genere le: {timestamp}
+Optimise pour la compilation Cython
 """
 
-INDEX_HTML = \"\"\"{html_content}\"\"\"
+# HTML decoupe en chunks pour faciliter la compilation
+_HTML_CHUNKS = {chunks}
+
+# Reconstruction du HTML complet
+INDEX_HTML = "".join(_HTML_CHUNKS)
 '''
     
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
+    # Formater les chunks pour Python
+    chunks_formatted = '[\n' + ',\n'.join(f'    {repr(chunk)}' for chunk in chunks) + '\n]'
+    
     return template.format(
         timestamp=timestamp,
-        html_content=html_content
+        chunks=chunks_formatted
     )
 
 def main():
     print("=" * 60)
-    print("GENERATION DE ASSETS.PY")
+    print("GENERATION DE ASSETS.PY (optimise Cython)")
     print("=" * 60)
     
     # Lire le fichier HTML
@@ -61,6 +80,9 @@ def main():
     
     if html_content is None:
         return False
+    
+    html_size = len(html_content)
+    print(f"[INFO] Taille HTML: {html_size:,} caracteres")
     
     # Générer le fichier assets.py
     print(f"\n[INFO] Generation de {ASSETS_FILE}")

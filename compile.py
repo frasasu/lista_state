@@ -2,8 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Script de compilation Cython pour proteger le code Python
-Compile tous les fichiers .py en .pyd, y compris assets.py et main.py
-Version corrigee sans emojis pour compatibilite GitHub Actions
+Compile TOUS les fichiers .py en .pyd (y compris assets.py)
 """
 
 import os
@@ -27,8 +26,11 @@ CORE_DIR = APP_DIR / "core"
 OUTPUT_DIR = APP_DIR / "core_compiled"
 BUILD_DIR = PROJECT_ROOT / "build_temp"
 
+# Liste des fichiers à exclure (uniquement les scripts utilitaires)
+EXCLUDE_FILES = ['__init__.py', 'loader.py']
+
 def find_all_py_files():
-    """Trouve tous les fichiers .py a compiler"""
+    """Trouve tous les fichiers .py a compiler (inclut assets.py)"""
     py_files = []
     
     # Fichiers dans core/
@@ -38,9 +40,9 @@ def find_all_py_files():
                 continue
             py_files.append(py_file)
     
-    # Fichiers principaux dans app/ (assets.py et main.py)
+    # Fichiers principaux dans app/ (assets.py ET main.py)
     for py_file in APP_DIR.glob('*.py'):
-        if py_file.name not in ['__init__.py', 'loader.py']:
+        if py_file.name not in EXCLUDE_FILES:
             py_files.append(py_file)
     
     return py_files
@@ -51,6 +53,9 @@ def clean_compiled_files():
     for pattern in patterns:
         for f in PROJECT_ROOT.glob(f'**/{pattern}'):
             if 'build' not in str(f) and 'core_compiled' not in str(f):
+                # Ne pas supprimer les fichiers source importants
+                if 'app/ui' in str(f):
+                    continue
                 try:
                     f.unlink()
                     print(f"   [DEL] {f}")
@@ -93,8 +98,10 @@ load_compiled_modules()
 
 def main():
     print("=" * 60)
-    print("COMPILATION CYTHON - Lista State")
+    print("COMPILATION CYTHON - Lista State (TOUS les fichiers)")
     print("=" * 60)
+    
+    print(f"\n[INFO] Fichiers exclus: {EXCLUDE_FILES}")
     
     # Nettoyer les anciens fichiers
     print("\n[INFO] Nettoyage des anciens fichiers compiles...")
@@ -116,21 +123,32 @@ def main():
         print(f"   - {f.relative_to(PROJECT_ROOT)}")
     
     try:
-        # Créer les extensions
+        # Créer les extensions avec des options spéciales pour assets.py
         extensions = []
         for py_file in py_files:
-            # Déterminer le nom du module
             rel_path = py_file.relative_to(APP_DIR)
             module_name = str(rel_path.with_suffix('')).replace(os.sep, '.')
             
-            extensions.append(
-                Extension(
-                    module_name,
-                    [str(py_file)],
+            # Options spéciales pour assets.py (qui contient de grandes chaînes)
+            if py_file.name == 'assets.py':
+                print(f"\n[INFO] Options speciales pour {py_file.name}")
+                extensions.append(
+                    Extension(
+                        module_name,
+                        [str(py_file)],
+                        # Options pour gérer les grandes chaînes
+                        extra_compile_args=['-O2'] if sys.platform == 'win32' else [],
+                    )
                 )
-            )
+            else:
+                extensions.append(
+                    Extension(
+                        module_name,
+                        [str(py_file)],
+                    )
+                )
         
-        # Compilation
+        # Compilation avec directives adaptées
         print("\n[INFO] Compilation en cours...")
         compiled_ext = cythonize(
             extensions,
@@ -141,10 +159,15 @@ def main():
                 'cdivision': True,
                 'embedsignature': False,
                 'binding': False,
+                # Options pour les grandes chaînes
+                'optimize.use_switch': True,
+                'optimize.unpack_method_calls': True,
             },
             force=True,
             verbose=False,
             build_dir=str(BUILD_DIR),
+            # Augmenter la limite de mémoire pour les grandes chaînes
+            compile_time_env={'CYTHON_LIMITS': '1000000'},
         )
         
         # Compiler avec setuptools
@@ -182,7 +205,7 @@ def main():
         print("\n[INFO] Suppression des fichiers sources originaux...")
         for py_file in py_files:
             try:
-                if py_file.exists():
+                if py_file.exists() and py_file.name not in EXCLUDE_FILES:
                     py_file.unlink()
                     print(f"   [DEL] {py_file}")
             except Exception as e:
@@ -206,9 +229,11 @@ def main():
         # Afficher les fichiers générés
         print("\n[INFO] Fichiers compiles generes:")
         for f in OUTPUT_DIR.glob('**/*.pyd'):
-            print(f"   - {f}")
+            size = f.stat().st_size / 1024
+            print(f"   - {f.name} ({size:.2f} KB)")
         for f in OUTPUT_DIR.glob('**/*.so'):
-            print(f"   - {f}")
+            size = f.stat().st_size / 1024
+            print(f"   - {f.name} ({size:.2f} KB)")
         
         print(f"\n[INFO] Script loader: {loader_file}")
         

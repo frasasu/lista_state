@@ -1,3 +1,4 @@
+# .github/workflows/build-release.yml
 name: Build and Release Lista State
 
 on:
@@ -41,7 +42,7 @@ jobs:
           }
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
-          echo "✅ Version: $VERSION"
+          Write-Host "Version: $VERSION"
       
       - name: Install dependencies
         run: |
@@ -52,55 +53,62 @@ jobs:
       - name: Generate assets.py
         run: |
           python build_assets.py
-          echo "✅ assets.py généré"
+          Write-Host "assets.py generated"
       
       - name: Compile ALL Python to .pyd
+        env:
+          CYTHON_LIMITS: "1000000"
         run: |
           python compile.py
-          echo "✅ Compilation Cython terminée"
+          Write-Host "Cython compilation completed"
       
       - name: Verify compilation
         shell: pwsh
         run: |
-          Write-Host "📁 Vérification des fichiers compilés:"
+          Write-Host "Verifying compiled files:"
           Get-ChildItem -Path app\core_compiled -Recurse | ForEach-Object {
-            Write-Host "   - $($_.Name) ($([math]::Round($_.Length/1KB, 2)) KB)"
+            $size = [math]::Round($_.Length/1KB, 2)
+            Write-Host "   - $($_.Name) ($size KB)"
           }
           
-          if ((Get-ChildItem app\core_compiled -Filter *.pyd).Count -eq 0) {
-            Write-Error "❌ Aucun fichier .pyd trouvé dans app\core_compiled"
+          $compiledCount = (Get-ChildItem app\core_compiled -Filter *.pyd).Count
+          if ($compiledCount -eq 0) {
+            Write-Error "No .pyd files found in app\core_compiled"
             exit 1
           }
           
-          if (-not (Test-Path "app\core_compiled\main.pyd") -and -not (Test-Path "app\core_compiled\main.so")) {
-            Write-Error "❌ main.pyd non trouvé!"
-            exit 1
+          $expectedFiles = @("executors", "lexers", "parsers", "simple_dataframe", 
+                              "stats_calculator", "table_importer", "vis", "main", "assets")
+          
+          foreach ($file in $expectedFiles) {
+            if ((Get-ChildItem app\core_compiled -Filter "$file.pyd").Count -eq 0 -and 
+                (Get-ChildItem app\core_compiled -Filter "$file.so").Count -eq 0) {
+              Write-Error "$file.pyd not found!"
+              exit 1
+            } else {
+              Write-Host "   [OK] $file.pyd found"
+            }
           }
           
-          if (-not (Test-Path "app\core_compiled\assets.pyd") -and -not (Test-Path "app\core_compiled\assets.so")) {
-            Write-Error "❌ assets.pyd non trouvé!"
-            exit 1
-          }
-          
-          Write-Host "✅ Tous les fichiers sont compilés"
+          Write-Host "All files compiled successfully"
       
       - name: Prepare PyInstaller structure
         shell: pwsh
         run: |
-          Write-Host "📁 Préparation de la structure pour PyInstaller..."
+          Write-Host "Preparing structure for PyInstaller..."
           
           New-Item -ItemType Directory -Force -Path dist\ListaState\app\core -ErrorAction SilentlyContinue
           
           Copy-Item -Path app\core_compiled\*.pyd -Destination dist\ListaState\app\core\ -Force
-          Write-Host "   ✅ Fichiers .pyd copiés"
+          Write-Host "   .pyd files copied"
           
           Copy-Item -Path app\loader.py -Destination dist\ListaState\app\ -Force
-          Write-Host "   ✅ loader.py copié"
+          Write-Host "   loader.py copied"
           
           Copy-Item -Path app\assets\monicone.ico -Destination dist\ListaState\app\assets\ -Force
-          Write-Host "   ✅ Icône copiée"
+          Write-Host "   icon copied"
           
-          Write-Host "✅ Structure prête pour PyInstaller"
+          Write-Host "Structure ready for PyInstaller"
       
       - name: Build with PyInstaller
         run: |
@@ -113,7 +121,6 @@ jobs:
             --add-data="app\assets\monicone.ico;app\assets" `
             --hidden-import="Cython" `
             --hidden-import="pywebview" `
-            --hidden-import="pyqtgraph" `
             --collect-all="pywebview" `
             --exclude-module="Cython.Compiler" `
             --exclude-module="setuptools" `
@@ -122,9 +129,9 @@ jobs:
           
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
-            Write-Host "✅ Exécutable créé : $([math]::Round($size, 2)) MB"
+            Write-Host "Executable created: $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "❌ Échec de la création"
+            Write-Error "Failed to create executable"
             exit 1
           }
       
@@ -135,19 +142,19 @@ jobs:
       - name: Update version in Inno Setup script
         run: |
           (Get-Content installer.iss) -replace '{#VERSION}', '${{ env.VERSION }}' | Set-Content installer.iss
-          Write-Host "✅ Version mise à jour: ${{ env.VERSION }}"
+          Write-Host "Version updated: ${{ env.VERSION }}"
       
       - name: Create installer
         run: |
-          Write-Host "🔨 Création de l'installateur..."
+          Write-Host "Creating installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
           
           $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
           if (Test-Path $installer) {
             $size = (Get-Item $installer).Length / 1MB
-            Write-Host "✅ Installateur créé : $([math]::Round($size, 2)) MB"
+            Write-Host "Installer created: $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "❌ Échec de la création"
+            Write-Error "Failed to create installer"
             exit 1
           }
       
@@ -163,7 +170,7 @@ jobs:
           $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
           $hash = Get-FileHash -Algorithm SHA256 $installer
           $hash.Hash | Out-File -FilePath "$installer.sha256"
-          Write-Host "✅ Checksum créé: $($hash.Hash)"
+          Write-Host "Checksum created: $($hash.Hash)"
       
       - name: Upload checksum artifact
         uses: actions/upload-artifact@v4
@@ -190,7 +197,7 @@ jobs:
       
       - name: List downloaded files
         run: |
-          echo "📁 Fichiers téléchargés :"
+          echo "Downloaded files:"
           ls -la artifacts/
       
       - name: Get version from tag
@@ -198,7 +205,7 @@ jobs:
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Version : $VERSION"
+          echo "Version: $VERSION"
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
