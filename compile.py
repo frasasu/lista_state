@@ -3,6 +3,7 @@
 """
 Script de compilation Cython pour proteger le code Python
 Compile TOUS les fichiers .py en .pyd (y compris assets.py)
+Version corrigee avec creation des dossiers necessaires
 """
 
 import os
@@ -26,11 +27,11 @@ CORE_DIR = APP_DIR / "core"
 OUTPUT_DIR = APP_DIR / "core_compiled"
 BUILD_DIR = PROJECT_ROOT / "build_temp"
 
-# Liste des fichiers à exclure (uniquement les scripts utilitaires)
+# Liste des fichiers à exclure
 EXCLUDE_FILES = ['__init__.py', 'loader.py']
 
 def find_all_py_files():
-    """Trouve tous les fichiers .py a compiler (inclut assets.py)"""
+    """Trouve tous les fichiers .py a compiler"""
     py_files = []
     
     # Fichiers dans core/
@@ -40,7 +41,7 @@ def find_all_py_files():
                 continue
             py_files.append(py_file)
     
-    # Fichiers principaux dans app/ (assets.py ET main.py)
+    # Fichiers principaux dans app/
     for py_file in APP_DIR.glob('*.py'):
         if py_file.name not in EXCLUDE_FILES:
             py_files.append(py_file)
@@ -53,40 +54,36 @@ def clean_compiled_files():
     for pattern in patterns:
         for f in PROJECT_ROOT.glob(f'**/{pattern}'):
             if 'build' not in str(f) and 'core_compiled' not in str(f):
-                # Ne pas supprimer les fichiers source importants
                 if 'app/ui' in str(f):
                     continue
                 try:
-                    f.unlink()
-                    print(f"   [DEL] {f}")
+                    if f.exists():
+                        f.unlink()
+                        print(f"   [DEL] {f}")
                 except:
                     pass
 
 def create_loader_script():
-    """Cree un script de chargement pour les fichiers compiles"""
+    """Cree un script de chargement"""
     loader_content = '''# -*- coding: utf-8 -*-
 """
 Script de chargement automatique pour les modules compiles
-Genere automatiquement par compile.py
 """
 
 import sys
-import os
 from pathlib import Path
 
 def load_compiled_modules():
-    """Charge les modules compiles"""
-    # Ajouter le dossier core_compiled au PYTHONPATH
     app_dir = Path(__file__).parent
     core_compiled_dir = app_dir / "core_compiled"
     
     if core_compiled_dir.exists():
-        sys.path.insert(0, str(core_compiled_dir))
+        if str(core_compiled_dir) not in sys.path:
+            sys.path.insert(0, str(core_compiled_dir))
     
-    # Ajouter app_dir pour les modules principaux
-    sys.path.insert(0, str(app_dir))
+    if str(app_dir) not in sys.path:
+        sys.path.insert(0, str(app_dir))
 
-# Charger automatiquement au demarrage
 load_compiled_modules()
 '''
     
@@ -98,7 +95,7 @@ load_compiled_modules()
 
 def main():
     print("=" * 60)
-    print("COMPILATION CYTHON - Lista State (TOUS les fichiers)")
+    print("COMPILATION CYTHON - Lista State")
     print("=" * 60)
     
     print(f"\n[INFO] Fichiers exclus: {EXCLUDE_FILES}")
@@ -107,9 +104,13 @@ def main():
     print("\n[INFO] Nettoyage des anciens fichiers compiles...")
     clean_compiled_files()
     
-    # Créer le dossier de sortie
-    OUTPUT_DIR.mkdir(exist_ok=True)
-    print(f"[INFO] Dossier de sortie: {OUTPUT_DIR}")
+    # Creer les dossiers necessaires
+    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Dossier de sortie cree: {OUTPUT_DIR}")
+    
+    # Creer le dossier core dans OUTPUT_DIR pour les fichiers core
+    (OUTPUT_DIR / "core").mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Dossier core cree: {OUTPUT_DIR / 'core'}")
     
     # Trouver tous les fichiers à compiler
     py_files = find_all_py_files()
@@ -123,32 +124,20 @@ def main():
         print(f"   - {f.relative_to(PROJECT_ROOT)}")
     
     try:
-        # Créer les extensions avec des options spéciales pour assets.py
+        # Creer les extensions
         extensions = []
         for py_file in py_files:
             rel_path = py_file.relative_to(APP_DIR)
             module_name = str(rel_path.with_suffix('')).replace(os.sep, '.')
             
-            # Options spéciales pour assets.py (qui contient de grandes chaînes)
-            if py_file.name == 'assets.py':
-                print(f"\n[INFO] Options speciales pour {py_file.name}")
-                extensions.append(
-                    Extension(
-                        module_name,
-                        [str(py_file)],
-                        # Options pour gérer les grandes chaînes
-                        extra_compile_args=['-O2'] if sys.platform == 'win32' else [],
-                    )
+            extensions.append(
+                Extension(
+                    module_name,
+                    [str(py_file)],
                 )
-            else:
-                extensions.append(
-                    Extension(
-                        module_name,
-                        [str(py_file)],
-                    )
-                )
+            )
         
-        # Compilation avec directives adaptées
+        # Compilation
         print("\n[INFO] Compilation en cours...")
         compiled_ext = cythonize(
             extensions,
@@ -159,15 +148,10 @@ def main():
                 'cdivision': True,
                 'embedsignature': False,
                 'binding': False,
-                # Options pour les grandes chaînes
-                'optimize.use_switch': True,
-                'optimize.unpack_method_calls': True,
             },
             force=True,
             verbose=False,
             build_dir=str(BUILD_DIR),
-            # Augmenter la limite de mémoire pour les grandes chaînes
-            compile_time_env={'CYTHON_LIMITS': '1000000'},
         )
         
         # Compiler avec setuptools
@@ -179,26 +163,49 @@ def main():
         
         print("\n[OK] Compilation Cython terminee!")
         
-        # Déplacer les fichiers compilés vers core_compiled
+        # Deplacer les fichiers compiles vers core_compiled
         print("\n[INFO] Deplacement des fichiers compiles...")
         compiled_count = 0
         
-        # Chercher les fichiers compilés
+        # Chercher les fichiers compiles dans build/lib
+        build_lib_dir = PROJECT_ROOT / "build" / "lib.win-amd64-cpython-311"
+        if build_lib_dir.exists():
+            print(f"[INFO] Recherche dans {build_lib_dir}")
+            for compiled_file in build_lib_dir.glob('**/*.pyd'):
+                # Determiner la destination
+                rel_path = compiled_file.relative_to(build_lib_dir)
+                if 'core' in str(rel_path):
+                    target_dir = OUTPUT_DIR / "core"
+                else:
+                    target_dir = OUTPUT_DIR
+                
+                target_dir.mkdir(parents=True, exist_ok=True)
+                target_file = target_dir / compiled_file.name
+                shutil.move(str(compiled_file), str(target_file))
+                print(f"   [MOV] {compiled_file.name} -> {target_file}")
+                compiled_count += 1
+        
+        # Chercher aussi dans app/ directement
         for pattern in ['*.pyd', '*.so']:
             for compiled_file in APP_DIR.glob(f'**/{pattern}'):
-                # Éviter de déplacer depuis core_compiled
-                if 'core_compiled' not in str(compiled_file):
-                    # Déterminer le sous-dossier relatif
+                if 'core_compiled' not in str(compiled_file) and 'build' not in str(compiled_file):
                     rel_path = compiled_file.relative_to(APP_DIR)
-                    target_dir = OUTPUT_DIR / rel_path.parent
-                    target_dir.mkdir(parents=True, exist_ok=True)
+                    if 'core' in str(rel_path) and compiled_file.parent.name == 'core':
+                        target_dir = OUTPUT_DIR / "core"
+                    else:
+                        target_dir = OUTPUT_DIR
                     
+                    target_dir.mkdir(parents=True, exist_ok=True)
                     target_file = target_dir / compiled_file.name
+                    
+                    if target_file.exists():
+                        target_file.unlink()
+                    
                     shutil.move(str(compiled_file), str(target_file))
                     print(f"   [MOV] {compiled_file.name} -> {target_file}")
                     compiled_count += 1
         
-        # Créer le script loader.py
+        # Creer le script loader.py
         loader_file = create_loader_script()
         
         # Supprimer les fichiers sources originaux
@@ -211,29 +218,33 @@ def main():
             except Exception as e:
                 print(f"   [WARN] Impossible de supprimer {py_file}: {e}")
         
-        # Nettoyer les fichiers .c temporaires
+        # Nettoyer les fichiers temporaires
         for c_file in PROJECT_ROOT.glob('**/*.c'):
             if 'core_compiled' not in str(c_file) and 'build' not in str(c_file):
                 try:
-                    c_file.unlink()
+                    if c_file.exists():
+                        c_file.unlink()
                 except:
                     pass
         
         # Nettoyer le dossier de build
         if BUILD_DIR.exists():
             shutil.rmtree(BUILD_DIR)
-            print("[INFO] Nettoyage du dossier de build")
+            print("[INFO] Nettoyage du dossier build_temp")
+        
+        # Nettoyer le dossier build de setuptools
+        build_dir = PROJECT_ROOT / "build"
+        if build_dir.exists():
+            shutil.rmtree(build_dir)
+            print("[INFO] Nettoyage du dossier build")
         
         print(f"\n[OK] Compilation reussie! {compiled_count} fichiers compiles dans {OUTPUT_DIR}")
         
-        # Afficher les fichiers générés
+        # Afficher les fichiers generes
         print("\n[INFO] Fichiers compiles generes:")
         for f in OUTPUT_DIR.glob('**/*.pyd'):
             size = f.stat().st_size / 1024
-            print(f"   - {f.name} ({size:.2f} KB)")
-        for f in OUTPUT_DIR.glob('**/*.so'):
-            size = f.stat().st_size / 1024
-            print(f"   - {f.name} ({size:.2f} KB)")
+            print(f"   - {f.relative_to(OUTPUT_DIR)} ({size:.2f} KB)")
         
         print(f"\n[INFO] Script loader: {loader_file}")
         
