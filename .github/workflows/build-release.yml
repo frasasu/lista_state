@@ -66,49 +66,98 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "Verifying compiled files:"
-          Get-ChildItem -Path app\core_compiled -Recurse | ForEach-Object {
+          Get-ChildItem -Path app\core_compiled -Recurse -File | ForEach-Object {
             $size = [math]::Round($_.Length/1KB, 2)
-            Write-Host "   - $($_.Name) ($size KB)"
+            $relPath = $_.FullName.Replace("$env:GITHUB_WORKSPACE\", "")
+            Write-Host "   - $relPath ($size KB)"
           }
           
-          $compiledCount = (Get-ChildItem app\core_compiled -Filter *.pyd).Count
-          if ($compiledCount -eq 0) {
-            Write-Error "No .pyd files found in app\core_compiled"
-            exit 1
-          }
+          # Vérifier les fichiers core (dans le sous-dossier core)
+          $coreFiles = @("executors", "lexers", "parsers", "simple_dataframe", 
+                         "stats_calculator", "table_importer", "vis")
           
-          $expectedFiles = @("executors", "lexers", "parsers", "simple_dataframe", 
-                              "stats_calculator", "table_importer", "vis", "main", "assets")
+          $allFound = $true
           
-          foreach ($file in $expectedFiles) {
-            if ((Get-ChildItem app\core_compiled -Filter "$file.pyd").Count -eq 0 -and 
-                (Get-ChildItem app\core_compiled -Filter "$file.so").Count -eq 0) {
-              Write-Error "$file.pyd not found!"
-              exit 1
+          # Vérifier les fichiers dans core_compiled/core/
+          foreach ($file in $coreFiles) {
+            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file*.pyd" -ErrorAction SilentlyContinue
+            if ($found.Count -eq 0) {
+              Write-Error "$file.pyd not found in app\core_compiled\core!"
+              $allFound = $false
             } else {
-              Write-Host "   [OK] $file.pyd found"
+              Write-Host "   [OK] $file.pyd found in core/"
             }
           }
           
-          Write-Host "All files compiled successfully"
+          # Vérifier main.pyd dans core_compiled
+          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" -ErrorAction SilentlyContinue
+          if ($mainFound.Count -eq 0) {
+            Write-Error "main.pyd not found in app\core_compiled!"
+            $allFound = $false
+          } else {
+            Write-Host "   [OK] main.pyd found"
+          }
+          
+          # Vérifier assets.pyd dans core_compiled
+          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" -ErrorAction SilentlyContinue
+          if ($assetsFound.Count -eq 0) {
+            Write-Error "assets.pyd not found in app\core_compiled!"
+            $allFound = $false
+          } else {
+            Write-Host "   [OK] assets.pyd found"
+          }
+          
+          if ($allFound) {
+            Write-Host "All files compiled successfully!"
+          } else {
+            exit 1
+          }
       
       - name: Prepare PyInstaller structure
         shell: pwsh
         run: |
           Write-Host "Preparing structure for PyInstaller..."
           
+          # Creer la structure de destination
           New-Item -ItemType Directory -Force -Path dist\ListaState\app\core -ErrorAction SilentlyContinue
           
-          Copy-Item -Path app\core_compiled\*.pyd -Destination dist\ListaState\app\core\ -Force
-          Write-Host "   .pyd files copied"
+          # Copier les fichiers core (avec leurs noms complets)
+          Copy-Item -Path "app\core_compiled\core\*.pyd" -Destination "dist\ListaState\app\core\" -Force
+          Write-Host "   Core .pyd files copied"
           
+          # Copier les fichiers principaux (main, assets)
+          Copy-Item -Path "app\core_compiled\main*.pyd" -Destination "dist\ListaState\app\core\" -Force
+          Copy-Item -Path "app\core_compiled\assets*.pyd" -Destination "dist\ListaState\app\core\" -Force
+          Write-Host "   Main and assets .pyd files copied"
+          
+          # Renommer les fichiers pour supprimer le suffixe cp311-win_amd64
+          Get-ChildItem -Path "dist\ListaState\app\core\*.pyd" | ForEach-Object {
+            $newName = $_.Name -replace '\.cp311-win_amd64', ''
+            if ($newName -ne $_.Name) {
+              Rename-Item -Path $_.FullName -NewName $newName -Force
+              Write-Host "   Renamed: $($_.Name) -> $newName"
+            }
+          }
+          
+          # Copier loader.py
           Copy-Item -Path app\loader.py -Destination dist\ListaState\app\ -Force
           Write-Host "   loader.py copied"
           
+          # Copier l'icone
           Copy-Item -Path app\assets\monicone.ico -Destination dist\ListaState\app\assets\ -Force
           Write-Host "   icon copied"
           
           Write-Host "Structure ready for PyInstaller"
+          
+          # Afficher la structure finale
+          Write-Host "`nFinal structure:"
+          Get-ChildItem -Path dist\ListaState -Recurse | ForEach-Object {
+            if (!$_.PSIsContainer) {
+              $size = [math]::Round($_.Length/1KB, 2)
+              $relPath = $_.FullName.Replace("$env:GITHUB_WORKSPACE\dist\ListaState\", "")
+              Write-Host "   - $relPath ($size KB)"
+            }
+          }
       
       - name: Build with PyInstaller
         run: |
