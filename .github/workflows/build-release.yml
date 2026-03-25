@@ -74,12 +74,12 @@ jobs:
           
           $allFound = $true
           
-          # Vérifier les fichiers core
+          # Vérifier les fichiers core dans core_compiled/core/
           $coreFiles = @("executors", "lexers", "parsers", "simple_dataframe", 
                          "stats_calculator", "table_importer", "vis")
           
           foreach ($file in $coreFiles) {
-            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file.pyd" -ErrorAction SilentlyContinue
+            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file*.pyd" -ErrorAction SilentlyContinue
             if ($found.Count -eq 0) {
               Write-Error "$file.pyd not found in app\core_compiled\core!"
               $allFound = $false
@@ -89,7 +89,7 @@ jobs:
           }
           
           # Vérifier main.pyd
-          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main.pyd" -ErrorAction SilentlyContinue
+          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" -ErrorAction SilentlyContinue
           if ($mainFound.Count -eq 0) {
             Write-Error "main.pyd not found in app\core_compiled!"
             $allFound = $false
@@ -98,7 +98,7 @@ jobs:
           }
           
           # Vérifier assets.pyd
-          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets.pyd" -ErrorAction SilentlyContinue
+          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" -ErrorAction SilentlyContinue
           if ($assetsFound.Count -eq 0) {
             Write-Error "assets.pyd not found in app\core_compiled!"
             $allFound = $false
@@ -126,45 +126,38 @@ jobs:
           }
           Write-Host "Cleanup completed"
       
-      - name: Create launcher script
+      - name: Rename compiled files
         shell: pwsh
         run: |
-          Write-Host "Creating launcher script..."
+          Write-Host "Renaming compiled files..."
           
-          $launcherContent = @"
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Launcher for Lista State - loads compiled main.pyd
-"""
-
-import sys
-import os
-from pathlib import Path
-
-# Ajouter le dossier app au PYTHONPATH
-app_dir = Path(__file__).parent / "app"
-sys.path.insert(0, str(app_dir))
-
-# Ajouter le dossier core_compiled au PYTHONPATH
-core_compiled_dir = app_dir / "core_compiled"
-if core_compiled_dir.exists():
-    sys.path.insert(0, str(core_compiled_dir))
-
-# Importer main.pyd (compilé)
-try:
-    from main import run
-except ImportError as e:
-    print(f"Error importing main: {e}")
-    print(f"Python path: {sys.path}")
-    sys.exit(1)
-
-if __name__ == "__main__":
-    run()
-"@
+          # Renommer les fichiers core dans core_compiled/core/
+          Get-ChildItem -Path "app\core_compiled\core" -Filter "*.pyd" | ForEach-Object {
+            $newName = $_.Name -replace '\.cp311-win_amd64', ''
+            Rename-Item -Path $_.FullName -NewName $newName -Force
+            Write-Host "   Renamed: $($_.Name) -> $newName"
+          }
           
-          $launcherContent | Out-File -FilePath "launcher.py" -Encoding UTF8
-          Write-Host "   launcher.py created"
+          # Renommer main.pyd
+          Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" | ForEach-Object {
+            $newName = $_.Name -replace '\.cp311-win_amd64', ''
+            Rename-Item -Path $_.FullName -NewName $newName -Force
+            Write-Host "   Renamed: $($_.Name) -> $newName"
+          }
+          
+          # Renommer assets.pyd
+          Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" | ForEach-Object {
+            $newName = $_.Name -replace '\.cp311-win_amd64', ''
+            Rename-Item -Path $_.FullName -NewName $newName -Force
+            Write-Host "   Renamed: $($_.Name) -> $newName"
+          }
+          
+          Write-Host "`nCompiled files after rename:"
+          Get-ChildItem -Path app\core_compiled -Recurse -File | ForEach-Object {
+            $size = [math]::Round($_.Length/1KB, 2)
+            $relPath = $_.FullName.Replace("$env:GITHUB_WORKSPACE\", "")
+            Write-Host "   - $relPath ($size KB)"
+          }
       
       - name: Build with PyInstaller
         run: |
@@ -172,7 +165,13 @@ if __name__ == "__main__":
             --name="ListaState" `
             --windowed `
             --icon="app/assets/monicone.ico" `
-            --add-data="app\core_compiled\core\*.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\executors.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\lexers.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\parsers.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\simple_dataframe.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\stats_calculator.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\table_importer.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\vis.pyd;app\core_compiled" `
             --add-data="app\core_compiled\main.pyd;." `
             --add-data="app\core_compiled\assets.pyd;." `
             --add-data="app\assets\monicone.ico;app\assets" `
@@ -184,7 +183,7 @@ if __name__ == "__main__":
             --exclude-module="distutils" `
             --clean `
             --noconfirm `
-            launcher.py
+            launch.py
           
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
