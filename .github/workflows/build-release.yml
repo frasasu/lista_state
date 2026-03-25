@@ -42,23 +42,126 @@ jobs:
           }
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
-          echo "✅ Version: $VERSION"
+          Write-Host "Version: $VERSION"
       
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller cython setuptools wheel
+      
+      - name: Generate assets.py
+        run: |
+          python build_assets.py
+          Write-Host "assets.py generated"
+      
+      - name: Compile ALL Python to .pyd
+        env:
+          CYTHON_LIMITS: "1000000"
+        run: |
+          python compile.py
+          Write-Host "Cython compilation completed"
+      
+      - name: Verify compilation
+        shell: pwsh
+        run: |
+          Write-Host "Verifying compiled files:"
+          Get-ChildItem -Path app\core_compiled -Recurse -File | ForEach-Object {
+            $size = [math]::Round($_.Length/1KB, 2)
+            $relPath = $_.FullName.Replace("$env:GITHUB_WORKSPACE\", "")
+            Write-Host "   - $relPath ($size KB)"
+          }
+          
+          $allFound = $true
+          
+          # Vérifier les fichiers core dans core_compiled/core/
+          $coreFiles = @("executors", "lexers", "parsers", "simple_dataframe", 
+                         "stats_calculator", "table_importer", "vis")
+          
+          foreach ($file in $coreFiles) {
+            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file.pyd" -ErrorAction SilentlyContinue
+            if ($found.Count -eq 0) {
+              Write-Error "$file.pyd not found in app\core_compiled\core!"
+              $allFound = $false
+            } else {
+              Write-Host "   [OK] $file.pyd found in core/"
+            }
+          }
+          
+          # Vérifier main.pyd
+          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main.pyd" -ErrorAction SilentlyContinue
+          if ($mainFound.Count -eq 0) {
+            Write-Error "main.pyd not found in app\core_compiled!"
+            $allFound = $false
+          } else {
+            Write-Host "   [OK] main.pyd found"
+          }
+          
+          # Vérifier assets.pyd
+          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets.pyd" -ErrorAction SilentlyContinue
+          if ($assetsFound.Count -eq 0) {
+            Write-Error "assets.pyd not found in app\core_compiled!"
+            $allFound = $false
+          } else {
+            Write-Host "   [OK] assets.pyd found"
+          }
+          
+          if ($allFound) {
+            Write-Host "All files compiled successfully!"
+          } else {
+            exit 1
+          }
+      
+      - name: Clean previous build
+        shell: pwsh
+        run: |
+          Write-Host "Cleaning previous builds..."
+          if (Test-Path "dist") {
+            Remove-Item -Path "dist" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "   Removed dist directory"
+          }
+          if (Test-Path "build") {
+            Remove-Item -Path "build" -Recurse -Force -ErrorAction SilentlyContinue
+            Write-Host "   Removed build directory"
+          }
+          Write-Host "Cleanup completed"
       
       - name: Build with PyInstaller
         run: |
-          pyinstaller --name="ListaState" --windowed --icon="app/assets/monicone.ico" --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
+          pyinstaller `
+            --name="ListaState" `
+            --windowed `
+            --icon="app/assets/monicone.ico" `
+            --add-data="app\core_compiled\core\*.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\main.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\assets.pyd;app\core_compiled" `
+            --add-data="app\assets\monicone.ico;app\assets" `
+            --hidden-import="webview" `
+            --hidden-import="pywebview" `
+            --hidden-import="pywebview.platforms.winforms" `
+            --hidden-import="pywebview.platforms.win32" `
+            --hidden-import="Cython" `
+            --collect-all="pywebview" `
+            --exclude-module="Cython.Compiler" `
+            --exclude-module="setuptools" `
+            --exclude-module="distutils" `
+            --clean `
+            --noconfirm `
+            launch.py
           
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
-            Write-Host "✅ Exécutable créé : $([math]::Round($size, 2)) MB"
+            Write-Host "Executable created: $([math]::Round($size, 2)) MB"
+            
+            # Vérifier que pywebview est inclus
+            $pywebview_files = Get-ChildItem -Path "dist\ListaState" -Recurse -Filter "*webview*" -ErrorAction SilentlyContinue
+            if ($pywebview_files) {
+              Write-Host "pywebview files found: $($pywebview_files.Count)"
+            } else {
+              Write-Warning "No pywebview files found in output"
+            }
           } else {
-            Write-Error "❌ Échec de la création"
+            Write-Error "Failed to create executable"
             exit 1
           }
       
@@ -69,27 +172,41 @@ jobs:
       - name: Update version in Inno Setup script
         run: |
           (Get-Content installer.iss) -replace '{#VERSION}', '${{ env.VERSION }}' | Set-Content installer.iss
-          Write-Host "✅ Version mise à jour: ${{ env.VERSION }}"
+          Write-Host "Version updated: ${{ env.VERSION }}"
       
       - name: Create installer
         run: |
-          Write-Host "🔨 Création de l'installateur..."
+          Write-Host "Creating installer..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
           
           $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
           if (Test-Path $installer) {
             $size = (Get-Item $installer).Length / 1MB
-            Write-Host "✅ Installateur créé : $([math]::Round($size, 2)) MB"
+            Write-Host "Installer created: $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "❌ Échec de la création"
+            Write-Error "Failed to create installer"
             exit 1
           }
       
-      - name: Upload artifact
+      - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
           name: ListaState-Installer
           path: installer/ListaState_Setup_${{ env.VERSION }}.exe
+          retention-days: 30
+      
+      - name: Create checksum
+        run: |
+          $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
+          $hash = Get-FileHash -Algorithm SHA256 $installer
+          $hash.Hash | Out-File -FilePath "$installer.sha256"
+          Write-Host "Checksum created: $($hash.Hash)"
+      
+      - name: Upload checksum artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ListaState-Checksum
+          path: installer/ListaState_Setup_${{ env.VERSION }}.exe.sha256
           retention-days: 30
 
   create-release:
@@ -101,28 +218,35 @@ jobs:
       contents: write
     
     steps:
-      - name: Download artifact
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: ListaState-Installer
+          pattern: ListaState-*
           path: artifacts
+          merge-multiple: true
       
       - name: List downloaded files
-        run: ls -la artifacts/
+        run: |
+          echo "Downloaded files:"
+          ls -la artifacts/
       
       - name: Get version from tag
         id: version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "✅ Version : $VERSION"
+          echo "Version: $VERSION"
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: Lista State ${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
-          files: artifacts/*.exe
+          files: |
+            artifacts/*.exe
+            artifacts/*.sha256
           generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
