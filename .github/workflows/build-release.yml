@@ -136,8 +136,11 @@ jobs:
             --add-data="app\core_compiled\main.pyd;app\core_compiled" `
             --add-data="app\core_compiled\assets.pyd;app\core_compiled" `
             --add-data="app\assets\monicone.ico;app\assets" `
-            --hidden-import="Cython" `
+            --hidden-import="webview" `
             --hidden-import="pywebview" `
+            --hidden-import="pywebview.platforms.winforms" `
+            --hidden-import="pywebview.platforms.win32" `
+            --hidden-import="Cython" `
             --collect-all="pywebview" `
             --exclude-module="Cython.Compiler" `
             --exclude-module="setuptools" `
@@ -149,6 +152,14 @@ jobs:
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
             Write-Host "Executable created: $([math]::Round($size, 2)) MB"
+            
+            # Vérifier que pywebview est inclus
+            $pywebview_files = Get-ChildItem -Path "dist\ListaState" -Recurse -Filter "*webview*" -ErrorAction SilentlyContinue
+            if ($pywebview_files) {
+              Write-Host "pywebview files found: $($pywebview_files.Count)"
+            } else {
+              Write-Warning "No pywebview files found in output"
+            }
           } else {
             Write-Error "Failed to create executable"
             exit 1
