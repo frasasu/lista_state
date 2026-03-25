@@ -3,7 +3,7 @@
 """
 Script de compilation Cython pour proteger le code Python
 Compile TOUS les fichiers .py en .pyd (y compris assets.py)
-Place main.pyd et assets.pyd dans core_compiled avec les autres modules
+Version corrigee avec creation des dossiers avant copie
 """
 
 import os
@@ -27,7 +27,7 @@ CORE_DIR = APP_DIR / "core"
 OUTPUT_DIR = APP_DIR / "core_compiled"
 BUILD_DIR = PROJECT_ROOT / "build_temp"
 
-# Liste des fichiers à exclure de la compilation
+# Liste des fichiers à exclure
 EXCLUDE_FILES = ['__init__.py', 'loader.py']
 
 def find_all_py_files():
@@ -41,7 +41,7 @@ def find_all_py_files():
                 continue
             py_files.append(py_file)
     
-    # Fichiers principaux dans app/ (main.py, assets.py)
+    # Fichiers principaux dans app/
     for py_file in APP_DIR.glob('*.py'):
         if py_file.name not in EXCLUDE_FILES:
             py_files.append(py_file)
@@ -74,14 +74,19 @@ def main():
     print("\n[INFO] Nettoyage des anciens fichiers compiles...")
     clean_compiled_files()
     
-    # Creer le dossier core_compiled (dossier principal)
+    # Creer le dossier core_compiled
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Dossier de sortie cree: {OUTPUT_DIR}")
     
-    # Creer le dossier core dans OUTPUT_DIR pour les modules core
+    # Creer le dossier core dans core_compiled
     core_output_dir = OUTPUT_DIR / "core"
     core_output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Dossier core cree: {core_output_dir}")
+    
+    # Creer le dossier core dans le repertoire courant pour la copie
+    current_core_dir = PROJECT_ROOT / "core"
+    current_core_dir.mkdir(parents=True, exist_ok=True)
+    print(f"[INFO] Dossier core courant cree: {current_core_dir}")
     
     # Trouver tous les fichiers à compiler
     py_files = find_all_py_files()
@@ -143,24 +148,19 @@ def main():
         if build_lib_dir.exists():
             print(f"[INFO] Recherche dans {build_lib_dir}")
             for compiled_file in build_lib_dir.glob('**/*.pyd'):
-                # Determiner la destination
-                rel_path = compiled_file.relative_to(build_lib_dir)
                 file_name = compiled_file.name
-                
-                # Extraire le nom du module sans suffixe
                 base_name = file_name.replace('.cp311-win_amd64', '')
                 
-                # Les fichiers core vont dans core_compiled/core/
-                if 'core' in str(rel_path) or base_name in ['executors', 'lexers', 'parsers', 
-                                                              'simple_dataframe', 'stats_calculator', 
-                                                              'table_importer', 'vis']:
-                    target_dir = core_output_dir
+                # Determiner la destination
+                if 'core' in str(compiled_file.parent):
+                    # Fichiers core
+                    target_file = core_output_dir / base_name
                 else:
-                    # main.pyd et assets.pyd vont directement dans core_compiled/
-                    target_dir = OUTPUT_DIR
+                    # main.pyd et assets.pyd
+                    target_file = OUTPUT_DIR / base_name
                 
-                target_dir.mkdir(parents=True, exist_ok=True)
-                target_file = target_dir / base_name
+                # Creer le dossier parent si necessaire
+                target_file.parent.mkdir(parents=True, exist_ok=True)
                 
                 # Supprimer si existe
                 if target_file.exists():
@@ -179,14 +179,12 @@ def main():
                     
                     # Determiner la destination
                     if compiled_file.parent.name == 'core' or 'core' in str(compiled_file.parent):
-                        target_dir = core_output_dir
-                    elif base_name in ['main', 'assets']:
-                        target_dir = OUTPUT_DIR
+                        target_file = core_output_dir / base_name
                     else:
-                        target_dir = OUTPUT_DIR
+                        target_file = OUTPUT_DIR / base_name
                     
-                    target_dir.mkdir(parents=True, exist_ok=True)
-                    target_file = target_dir / base_name
+                    # Creer le dossier parent si necessaire
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
                     
                     # Supprimer si existe
                     if target_file.exists():
@@ -224,6 +222,14 @@ def main():
         if build_dir.exists():
             shutil.rmtree(build_dir)
             print("[INFO] Nettoyage du dossier build")
+        
+        # Nettoyer le dossier core courant
+        if current_core_dir.exists():
+            try:
+                shutil.rmtree(current_core_dir)
+                print("[INFO] Nettoyage du dossier core courant")
+            except:
+                pass
         
         print(f"\n[OK] Compilation reussie! {compiled_count} fichiers compiles dans {OUTPUT_DIR}")
         
