@@ -3,7 +3,7 @@
 """
 Script de compilation Cython pour proteger le code Python
 Compile TOUS les fichiers .py en .pyd (y compris assets.py)
-Version corrigee avec creation des dossiers avant copie
+Place main.pyd et assets.pyd dans core_compiled avec les autres modules
 """
 
 import os
@@ -27,7 +27,7 @@ CORE_DIR = APP_DIR / "core"
 OUTPUT_DIR = APP_DIR / "core_compiled"
 BUILD_DIR = PROJECT_ROOT / "build_temp"
 
-# Liste des fichiers à exclure
+# Liste des fichiers à exclure de la compilation
 EXCLUDE_FILES = ['__init__.py', 'loader.py']
 
 def find_all_py_files():
@@ -41,7 +41,7 @@ def find_all_py_files():
                 continue
             py_files.append(py_file)
     
-    # Fichiers principaux dans app/
+    # Fichiers principaux dans app/ (main.py, assets.py)
     for py_file in APP_DIR.glob('*.py'):
         if py_file.name not in EXCLUDE_FILES:
             py_files.append(py_file)
@@ -63,36 +63,6 @@ def clean_compiled_files():
                 except:
                     pass
 
-def create_loader_script():
-    """Cree un script de chargement"""
-    loader_content = '''# -*- coding: utf-8 -*-
-"""
-Script de chargement automatique pour les modules compiles
-"""
-
-import sys
-from pathlib import Path
-
-def load_compiled_modules():
-    app_dir = Path(__file__).parent
-    core_compiled_dir = app_dir / "core_compiled"
-    
-    if core_compiled_dir.exists():
-        if str(core_compiled_dir) not in sys.path:
-            sys.path.insert(0, str(core_compiled_dir))
-    
-    if str(app_dir) not in sys.path:
-        sys.path.insert(0, str(app_dir))
-
-load_compiled_modules()
-'''
-    
-    loader_file = APP_DIR / "loader.py"
-    with open(loader_file, 'w', encoding='utf-8') as f:
-        f.write(loader_content)
-    print(f"[OK] Script loader.py cree")
-    return loader_file
-
 def main():
     print("=" * 60)
     print("COMPILATION CYTHON - Lista State")
@@ -104,19 +74,14 @@ def main():
     print("\n[INFO] Nettoyage des anciens fichiers compiles...")
     clean_compiled_files()
     
-    # Creer les dossiers necessaires
+    # Creer le dossier core_compiled (dossier principal)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Dossier de sortie cree: {OUTPUT_DIR}")
     
-    # Creer le dossier core dans OUTPUT_DIR pour les fichiers core
+    # Creer le dossier core dans OUTPUT_DIR pour les modules core
     core_output_dir = OUTPUT_DIR / "core"
     core_output_dir.mkdir(parents=True, exist_ok=True)
     print(f"[INFO] Dossier core cree: {core_output_dir}")
-    
-    # Creer le dossier core dans le repertoire courant pour la copie
-    current_core_dir = PROJECT_ROOT / "core"
-    current_core_dir.mkdir(parents=True, exist_ok=True)
-    print(f"[INFO] Dossier core courant cree: {current_core_dir}")
     
     # Trouver tous les fichiers à compiler
     py_files = find_all_py_files()
@@ -180,45 +145,56 @@ def main():
             for compiled_file in build_lib_dir.glob('**/*.pyd'):
                 # Determiner la destination
                 rel_path = compiled_file.relative_to(build_lib_dir)
-                if 'core' in str(rel_path):
+                file_name = compiled_file.name
+                
+                # Extraire le nom du module sans suffixe
+                base_name = file_name.replace('.cp311-win_amd64', '')
+                
+                # Les fichiers core vont dans core_compiled/core/
+                if 'core' in str(rel_path) or base_name in ['executors', 'lexers', 'parsers', 
+                                                              'simple_dataframe', 'stats_calculator', 
+                                                              'table_importer', 'vis']:
                     target_dir = core_output_dir
                 else:
+                    # main.pyd et assets.pyd vont directement dans core_compiled/
                     target_dir = OUTPUT_DIR
                 
                 target_dir.mkdir(parents=True, exist_ok=True)
-                target_file = target_dir / compiled_file.name
+                target_file = target_dir / base_name
                 
                 # Supprimer si existe
                 if target_file.exists():
                     target_file.unlink()
                 
                 shutil.move(str(compiled_file), str(target_file))
-                print(f"   [MOV] {compiled_file.name} -> {target_file}")
+                print(f"   [MOV] {file_name} -> {target_file}")
                 compiled_count += 1
         
-        # Chercher aussi dans le repertoire courant (pour les fichiers dans core/)
+        # Chercher aussi dans le repertoire courant
         for pattern in ['*.pyd', '*.so']:
             for compiled_file in PROJECT_ROOT.glob(f'**/{pattern}'):
                 if 'core_compiled' not in str(compiled_file) and 'build' not in str(compiled_file):
+                    file_name = compiled_file.name
+                    base_name = file_name.replace('.cp311-win_amd64', '')
+                    
                     # Determiner la destination
                     if compiled_file.parent.name == 'core' or 'core' in str(compiled_file.parent):
                         target_dir = core_output_dir
+                    elif base_name in ['main', 'assets']:
+                        target_dir = OUTPUT_DIR
                     else:
                         target_dir = OUTPUT_DIR
                     
                     target_dir.mkdir(parents=True, exist_ok=True)
-                    target_file = target_dir / compiled_file.name
+                    target_file = target_dir / base_name
                     
                     # Supprimer si existe
                     if target_file.exists():
                         target_file.unlink()
                     
                     shutil.move(str(compiled_file), str(target_file))
-                    print(f"   [MOV] {compiled_file.name} -> {target_file}")
+                    print(f"   [MOV] {file_name} -> {target_file}")
                     compiled_count += 1
-        
-        # Creer le script loader.py
-        loader_file = create_loader_script()
         
         # Supprimer les fichiers sources originaux
         print("\n[INFO] Suppression des fichiers sources originaux...")
@@ -239,24 +215,15 @@ def main():
                 except:
                     pass
         
-        # Nettoyer le dossier de build
+        # Nettoyer les dossiers de build
         if BUILD_DIR.exists():
             shutil.rmtree(BUILD_DIR)
             print("[INFO] Nettoyage du dossier build_temp")
         
-        # Nettoyer le dossier build de setuptools
         build_dir = PROJECT_ROOT / "build"
         if build_dir.exists():
             shutil.rmtree(build_dir)
             print("[INFO] Nettoyage du dossier build")
-        
-        # Nettoyer le dossier core courant
-        if current_core_dir.exists():
-            try:
-                shutil.rmtree(current_core_dir)
-                print("[INFO] Nettoyage du dossier core courant")
-            except:
-                pass
         
         print(f"\n[OK] Compilation reussie! {compiled_count} fichiers compiles dans {OUTPUT_DIR}")
         
@@ -266,8 +233,6 @@ def main():
             size = f.stat().st_size / 1024
             rel_path = f.relative_to(OUTPUT_DIR)
             print(f"   - {rel_path} ({size:.2f} KB)")
-        
-        print(f"\n[INFO] Script loader: {loader_file}")
         
         return True
         

@@ -79,7 +79,7 @@ jobs:
                          "stats_calculator", "table_importer", "vis")
           
           foreach ($file in $coreFiles) {
-            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file*.pyd" -ErrorAction SilentlyContinue
+            $found = Get-ChildItem -Path "app\core_compiled\core" -Filter "$file.pyd" -ErrorAction SilentlyContinue
             if ($found.Count -eq 0) {
               Write-Error "$file.pyd not found in app\core_compiled\core!"
               $allFound = $false
@@ -89,7 +89,7 @@ jobs:
           }
           
           # Vérifier main.pyd
-          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" -ErrorAction SilentlyContinue
+          $mainFound = Get-ChildItem -Path "app\core_compiled" -Filter "main.pyd" -ErrorAction SilentlyContinue
           if ($mainFound.Count -eq 0) {
             Write-Error "main.pyd not found in app\core_compiled!"
             $allFound = $false
@@ -98,7 +98,7 @@ jobs:
           }
           
           # Vérifier assets.pyd
-          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" -ErrorAction SilentlyContinue
+          $assetsFound = Get-ChildItem -Path "app\core_compiled" -Filter "assets.pyd" -ErrorAction SilentlyContinue
           if ($assetsFound.Count -eq 0) {
             Write-Error "assets.pyd not found in app\core_compiled!"
             $allFound = $false
@@ -126,54 +126,15 @@ jobs:
           }
           Write-Host "Cleanup completed"
       
-      - name: Rename compiled files
-        shell: pwsh
-        run: |
-          Write-Host "Renaming compiled files..."
-          
-          # Renommer les fichiers core dans core_compiled/core/
-          Get-ChildItem -Path "app\core_compiled\core" -Filter "*.pyd" | ForEach-Object {
-            $newName = $_.Name -replace '\.cp311-win_amd64', ''
-            Rename-Item -Path $_.FullName -NewName $newName -Force
-            Write-Host "   Renamed: $($_.Name) -> $newName"
-          }
-          
-          # Renommer main.pyd
-          Get-ChildItem -Path "app\core_compiled" -Filter "main*.pyd" | ForEach-Object {
-            $newName = $_.Name -replace '\.cp311-win_amd64', ''
-            Rename-Item -Path $_.FullName -NewName $newName -Force
-            Write-Host "   Renamed: $($_.Name) -> $newName"
-          }
-          
-          # Renommer assets.pyd
-          Get-ChildItem -Path "app\core_compiled" -Filter "assets*.pyd" | ForEach-Object {
-            $newName = $_.Name -replace '\.cp311-win_amd64', ''
-            Rename-Item -Path $_.FullName -NewName $newName -Force
-            Write-Host "   Renamed: $($_.Name) -> $newName"
-          }
-          
-          Write-Host "`nCompiled files after rename:"
-          Get-ChildItem -Path app\core_compiled -Recurse -File | ForEach-Object {
-            $size = [math]::Round($_.Length/1KB, 2)
-            $relPath = $_.FullName.Replace("$env:GITHUB_WORKSPACE\", "")
-            Write-Host "   - $relPath ($size KB)"
-          }
-      
       - name: Build with PyInstaller
         run: |
           pyinstaller `
             --name="ListaState" `
             --windowed `
             --icon="app/assets/monicone.ico" `
-            --add-data="app\core_compiled\core\executors.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\lexers.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\parsers.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\simple_dataframe.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\stats_calculator.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\table_importer.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\core\vis.pyd;app\core_compiled" `
-            --add-data="app\core_compiled\main.pyd;." `
-            --add-data="app\core_compiled\assets.pyd;." `
+            --add-data="app\core_compiled\core\*.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\main.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\assets.pyd;app\core_compiled" `
             --add-data="app\assets\monicone.ico;app\assets" `
             --hidden-import="Cython" `
             --hidden-import="pywebview" `
