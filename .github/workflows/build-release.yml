@@ -165,13 +165,13 @@ jobs:
             --name="ListaState" `
             --windowed `
             --icon="app/assets/monicone.ico" `
-            --add-data="app\core_compiled\core\executors.pyd;app\core" `
-            --add-data="app\core_compiled\core\lexers.pyd;app\core" `
-            --add-data="app\core_compiled\core\parsers.pyd;app\core" `
-            --add-data="app\core_compiled\core\simple_dataframe.pyd;app\core" `
-            --add-data="app\core_compiled\core\stats_calculator.pyd;app\core" `
-            --add-data="app\core_compiled\core\table_importer.pyd;app\core" `
-            --add-data="app\core_compiled\core\vis.pyd;app\core" `
+            --add-data="app\core_compiled\core\executors.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\lexers.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\parsers.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\simple_dataframe.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\stats_calculator.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\table_importer.pyd;app\core_compiled" `
+            --add-data="app\core_compiled\core\vis.pyd;app\core_compiled" `
             --add-data="app\core_compiled\main.pyd;." `
             --add-data="app\core_compiled\assets.pyd;." `
             --add-data="app\assets\monicone.ico;app\assets" `
