@@ -29,7 +29,7 @@ class AnalysisManager{
         this.currentAnalysisName = me.innerText;
         this.displayAnalysis(me.innerText);
     }
-    
+
     displayAnalysis(name){
        const content_analysis = this.core.payload.analysis[name];
        this.editor.value="";
@@ -707,7 +707,7 @@ function createSummarySection(results) {
         const value = document.createElement("div");
         value.className = "summary-value";
         value.textContent = metric.value !== undefined ? metric.value : '-';
-        
+
         const label = document.createElement("div");
         label.className = "summary-label";
         label.textContent = metric.label;
@@ -723,7 +723,7 @@ function createSummarySection(results) {
     if (results_data.columns && results_data.columns.length > 0) {
         const columnsList = document.createElement("div");
         columnsList.className = "columns-list";
-        
+
         const columnsTitle = document.createElement("div");
         columnsTitle.className = "columns-title";
         columnsTitle.textContent = "Colonnes:";
@@ -731,7 +731,7 @@ function createSummarySection(results) {
 
         const columnsGrid = document.createElement("div");
         columnsGrid.className = "columns-grid";
-        
+
         results_data.columns.forEach(col => {
             const colTag = document.createElement("span");
             colTag.className = "column-tag";
