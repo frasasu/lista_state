@@ -10,11 +10,11 @@ import zipfile
 from pathlib import PurePosixPath
 import json
 from typing import Dict, Any, Optional, Tuple
-from core_compiled.executors import evaluate_dsl_code
+from core import evaluate_dsl_code
 import traceback
 from datetime import datetime
-from core_compiled.table_importer import TableImporter
-from core_compiled.assets import INDEX_HTML
+from core import TableImporter
+
 
 
 def get_base_path():
@@ -224,10 +224,10 @@ class ManagerApp:
 
 api = ManagerApp()
 
-def run():
-    window = webview.create_window(
+
+window = webview.create_window(
     "Lista State - Statistical Data Analysis",
-    html=INDEX_HTML,
+    url=api.get_ui_path(),
     js_api=api,
     width=1200,
     height=1000,
@@ -240,4 +240,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    webview.start()
