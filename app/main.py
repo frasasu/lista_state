@@ -29,7 +29,7 @@ except ImportError:
     from core.table_importer import TableImporter
     from core.vis import Visualizer
 
-from assets import INDEX_HTML
+from core_compiled.assets import INDEX_HTML
 
 class ListaStateApp:
     def __init__(self):
