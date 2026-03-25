@@ -57,7 +57,7 @@ jobs:
             --windowed `
             --icon="app/assets/monicone.ico" `
             --add-data="app/assets/monicone.ico;app/assets" `
-            --add-data="app/iu;app/iu" `
+            --add-data="app/ui;app/ui" `
             --hidden-import="webview" `
             --hidden-import="pywebview" `
             --hidden-import="pywebview.platforms.winforms" `
