@@ -224,7 +224,8 @@ class ManagerApp:
 
 api = ManagerApp()
 
-window = webview.create_window(
+def run():
+    window = webview.create_window(
     "Lista State - Statistical Data Analysis",
     html=INDEX_HTML,
     js_api=api,
@@ -237,5 +238,6 @@ window = webview.create_window(
     text_select=True,
 )
 
+
 if __name__ == '__main__':
-    webview.start()
+    run()
