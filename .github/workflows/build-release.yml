@@ -58,6 +58,7 @@ jobs:
             --icon="app/assets/monicone.ico" `
             --add-data="app/assets/monicone.ico;app/assets" `
             --add-data="app/ui;app/ui" `
+            --add-data="app/core;app/core" `
             --hidden-import="webview" `
             --hidden-import="pywebview" `
             --hidden-import="pywebview.platforms.winforms" `
