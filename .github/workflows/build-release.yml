@@ -42,7 +42,7 @@ jobs:
           }
           echo "VERSION=$VERSION" >> $env:GITHUB_ENV
           echo "version=$VERSION" >> $env:GITHUB_OUTPUT
-          Write-Host "Version: $VERSION"
+          echo "✅ Version: $VERSION"
       
       - name: Install dependencies
         run: |
@@ -52,27 +52,13 @@ jobs:
       
       - name: Build with PyInstaller
         run: |
-          pyinstaller `
-            --name="ListaState" `
-            --windowed `
-            --icon="app/assets/monicone.ico" `
-            --add-data="app/assets/monicone.ico;app/assets" `
-            --add-data="app/ui;app/ui" `
-            --add-data="app/core;app/core" `
-            --hidden-import="webview" `
-            --hidden-import="pywebview" `
-            --hidden-import="pywebview.platforms.winforms" `
-            --hidden-import="pywebview.platforms.win32" `
-            --collect-all="pywebview" `
-            --clean `
-            --noconfirm `
-            app/main.py
+          pyinstaller --name="ListaState" --windowed --icon="app/assets/monicone.ico" --add-data="app/ui;ui" --add-data="app/core;core" app/main.py
           
           if (Test-Path "dist\ListaState\ListaState.exe") {
             $size = (Get-Item "dist\ListaState\ListaState.exe").Length / 1MB
-            Write-Host "Executable created: $([math]::Round($size, 2)) MB"
+            Write-Host "✅ Exécutable créé : $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "Failed to create executable"
+            Write-Error "❌ Échec de la création"
             exit 1
           }
       
@@ -83,41 +69,27 @@ jobs:
       - name: Update version in Inno Setup script
         run: |
           (Get-Content installer.iss) -replace '{#VERSION}', '${{ env.VERSION }}' | Set-Content installer.iss
-          Write-Host "Version updated: ${{ env.VERSION }}"
+          Write-Host "✅ Version mise à jour: ${{ env.VERSION }}"
       
       - name: Create installer
         run: |
-          Write-Host "Creating installer..."
+          Write-Host "🔨 Création de l'installateur..."
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
           
           $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
           if (Test-Path $installer) {
             $size = (Get-Item $installer).Length / 1MB
-            Write-Host "Installer created: $([math]::Round($size, 2)) MB"
+            Write-Host "✅ Installateur créé : $([math]::Round($size, 2)) MB"
           } else {
-            Write-Error "Failed to create installer"
+            Write-Error "❌ Échec de la création"
             exit 1
           }
       
-      - name: Upload installer artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ListaState-Installer
           path: installer/ListaState_Setup_${{ env.VERSION }}.exe
-          retention-days: 30
-      
-      - name: Create checksum
-        run: |
-          $installer = "installer\ListaState_Setup_${{ env.VERSION }}.exe"
-          $hash = Get-FileHash -Algorithm SHA256 $installer
-          $hash.Hash | Out-File -FilePath "$installer.sha256"
-          Write-Host "Checksum created: $($hash.Hash)"
-      
-      - name: Upload checksum artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ListaState-Checksum
-          path: installer/ListaState_Setup_${{ env.VERSION }}.exe.sha256
           retention-days: 30
 
   create-release:
@@ -129,35 +101,28 @@ jobs:
       contents: write
     
     steps:
-      - name: Download artifacts
+      - name: Download artifact
         uses: actions/download-artifact@v4
         with:
-          pattern: ListaState-*
+          name: ListaState-Installer
           path: artifacts
-          merge-multiple: true
       
       - name: List downloaded files
-        run: |
-          echo "Downloaded files:"
-          ls -la artifacts/
+        run: ls -la artifacts/
       
       - name: Get version from tag
         id: version
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Version: $VERSION"
+          echo "✅ Version : $VERSION"
       
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           name: Lista State ${{ steps.version.outputs.version }}
           tag_name: ${{ github.ref_name }}
-          files: |
-            artifacts/*.exe
-            artifacts/*.sha256
+          files: artifacts/*.exe
           generate_release_notes: true
-          draft: false
-          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
