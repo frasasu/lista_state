@@ -1,8 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Point d'entrée principal de Lista State
-"""
 import webview
 import os
 import sys
@@ -10,11 +5,10 @@ import zipfile
 from pathlib import PurePosixPath
 import json
 from typing import Dict, Any, Optional, Tuple
-from core import evaluate_dsl_code
+from core.executors import evaluate_dsl_code
 import traceback
 from datetime import datetime
 from core import TableImporter
-
 
 
 def get_base_path():
@@ -224,10 +218,9 @@ class ManagerApp:
 
 api = ManagerApp()
 
-
 window = webview.create_window(
     "Lista State - Statistical Data Analysis",
-    url=api.get_ui_path(),
+    api.get_ui_path(),
     js_api=api,
     width=1200,
     height=1000,
@@ -237,7 +230,6 @@ window = webview.create_window(
     confirm_close=True,
     text_select=True,
 )
-
 
 if __name__ == '__main__':
     webview.start()
