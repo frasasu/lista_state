@@ -52,37 +52,46 @@ jobs:
           pip install ordered-set
           pip install zstandard
       
-      - name: Download Dependency Walker
+      - name: Download and Setup Dependency Walker
+        shell: pwsh
         run: |
           # Créer le dossier cache Nuitka
-          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cache\nuitka"
+          $cacheDir = "$env:USERPROFILE\.cache\nuitka"
+          New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
           
-          # Télécharger Dependency Walker (version 64-bit)
+          # Télécharger Dependency Walker
           $dependsUrl = "https://www.dependencywalker.com/depends22_x64.zip"
-          $zipPath = "$env:USERPROFILE\.cache\nuitka\depends.zip"
+          $zipPath = "$cacheDir\depends.zip"
           
-          Write-Host "📥 Téléchargement de Dependency Walker..."
-          Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath
-          
-          # Extraire le fichier
-          Write-Host "📦 Extraction..."
-          Expand-Archive -Path $zipPath -DestinationPath "$env:USERPROFILE\.cache\nuitka\" -Force
-          
-          # Vérifier que depends.exe est présent
-          if (Test-Path "$env:USERPROFILE\.cache\nuitka\depends.exe") {
-            Write-Host "✅ Dependency Walker installé avec succès"
-          } else {
-            Write-Host "⚠️ Dependency Walker non trouvé, tentative alternative..."
-            # Alternative: utiliser le 32-bit si le 64-bit ne fonctionne pas
+          Write-Host "📥 Téléchargement de Dependency Walker depuis $dependsUrl..."
+          try {
+            Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath -UseBasicParsing
+          } catch {
+            Write-Host "⚠️ Échec téléchargement 64-bit, tentative 32-bit..."
             $dependsUrl = "https://www.dependencywalker.com/depends22_x86.zip"
-            Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath
-            Expand-Archive -Path $zipPath -DestinationPath "$env:USERPROFILE\.cache\nuitka\" -Force
+            Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath -UseBasicParsing
+          }
+          
+          # Extraire
+          Write-Host "📦 Extraction..."
+          Expand-Archive -Path $zipPath -DestinationPath $cacheDir -Force
+          
+          # Vérifier
+          if (Test-Path "$cacheDir\depends.exe") {
+            Write-Host "✅ Dependency Walker installé avec succès dans $cacheDir"
+          } else {
+            Write-Host "❌ Dependency Walker non trouvé"
+            exit 1
           }
       
       - name: Build with Nuitka
+        shell: pwsh
         run: |
-          # Accepter automatiquement l'utilisation de Dependency Walker
+          # Forcer l'acceptation du téléchargement et utiliser le cache
           $env:NUITKA_ACCEPT_DEPENDENCY_WALKER = "1"
+          
+          # Ajouter Dependency Walker au PATH
+          $env:PATH = "$env:USERPROFILE\.cache\nuitka;$env:PATH"
           
           python -m nuitka `
             --standalone `
@@ -91,6 +100,7 @@ jobs:
             --output-dir="dist" `
             --output-filename="ListaState.exe" `
             --include-package=core `
+            --assume-yes-for-downloads `
             app/main.py
 
           # Vérification
