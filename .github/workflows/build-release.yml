@@ -54,6 +54,9 @@ jobs:
       
       - name: Build with Nuitka
         run: |
+          # Définir la variable d'environnement pour accepter automatiquement Dependency Walker
+          $env:NUITKA_ACCEPT_DEPENDENCY_WALKER = "1"
+          
           python -m nuitka `
             --standalone `
             --windows-console-mode=disable `
@@ -61,7 +64,6 @@ jobs:
             --output-dir="dist" `
             --output-filename="ListaState.exe" `
             --include-package=core `
-            --follow-imports `
             app/main.py
 
           # Vérification
