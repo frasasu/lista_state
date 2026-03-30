@@ -27,7 +27,7 @@ VersionInfoProductName=Lista State
 Source: "app\assets\monicone.ico"; DestDir: "{app}"; DestName: "monicone.ico"; Flags: ignoreversion
 
 ; Application (TOUS les fichiers générés par PyInstaller)
-Source: "dist\ListaState\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "dist\main.dist\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Documentation
 Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion
