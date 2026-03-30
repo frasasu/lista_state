@@ -62,14 +62,6 @@ jobs:
             --output-filename="ListaState.exe" `
             --include-package=core `
             --follow-imports `
-            --enable-plugin=pywebview `
-            --include-package=pywebview `
-            --include-module=zipfile `
-            --include-module=json `
-            --include-module=traceback `
-            --include-module=datetime `
-            --include-module=os `
-            --include-module=sys `
             app/main.py
 
           # Vérification
