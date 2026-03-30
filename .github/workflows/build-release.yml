@@ -62,16 +62,22 @@ jobs:
             --output-filename="ListaState.exe" `
             --include-package=core `
             --follow-imports `
-            --warn-implicit-exceptions `
-            --warn-unused-function `
+            --enable-plugin=pywebview `
+            --include-package=pywebview `
+            --include-module=zipfile `
+            --include-module=json `
+            --include-module=traceback `
+            --include-module=datetime `
+            --include-module=os `
+            --include-module=sys `
             app/main.py
-          
-          # Nuitka compile les fichiers Python en .exe ou .pyd, pas besoin de les copier
+
+          # Vérification
           if (Test-Path "dist\main.dist\ListaState.exe") {
             $size = (Get-Item "dist\main.dist\ListaState.exe").Length / 1MB
             Write-Host "✅ Exécutable créé : $([math]::Round($size, 2)) MB"
-            
-            # Afficher la structure du dossier de sortie pour vérification
+
+            # Afficher la structure du dossier de sortie
             Write-Host "📁 Structure du dossier de sortie:"
             Get-ChildItem "dist\main.dist" -Recurse | Select-Object FullName, Length
           } else {
