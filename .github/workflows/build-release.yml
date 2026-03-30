@@ -52,9 +52,36 @@ jobs:
           pip install ordered-set
           pip install zstandard
       
+      - name: Download Dependency Walker
+        run: |
+          # Créer le dossier cache Nuitka
+          New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.cache\nuitka"
+          
+          # Télécharger Dependency Walker (version 64-bit)
+          $dependsUrl = "https://www.dependencywalker.com/depends22_x64.zip"
+          $zipPath = "$env:USERPROFILE\.cache\nuitka\depends.zip"
+          
+          Write-Host "📥 Téléchargement de Dependency Walker..."
+          Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath
+          
+          # Extraire le fichier
+          Write-Host "📦 Extraction..."
+          Expand-Archive -Path $zipPath -DestinationPath "$env:USERPROFILE\.cache\nuitka\" -Force
+          
+          # Vérifier que depends.exe est présent
+          if (Test-Path "$env:USERPROFILE\.cache\nuitka\depends.exe") {
+            Write-Host "✅ Dependency Walker installé avec succès"
+          } else {
+            Write-Host "⚠️ Dependency Walker non trouvé, tentative alternative..."
+            # Alternative: utiliser le 32-bit si le 64-bit ne fonctionne pas
+            $dependsUrl = "https://www.dependencywalker.com/depends22_x86.zip"
+            Invoke-WebRequest -Uri $dependsUrl -OutFile $zipPath
+            Expand-Archive -Path $zipPath -DestinationPath "$env:USERPROFILE\.cache\nuitka\" -Force
+          }
+      
       - name: Build with Nuitka
         run: |
-          # Définir la variable d'environnement pour accepter automatiquement Dependency Walker
+          # Accepter automatiquement l'utilisation de Dependency Walker
           $env:NUITKA_ACCEPT_DEPENDENCY_WALKER = "1"
           
           python -m nuitka `
