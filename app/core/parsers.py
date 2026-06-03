@@ -9,25 +9,25 @@ class Parser:
             'SUM', 'AVG', 'MEAN', 'MEDIAN', 'MODE', 'COUNT', 'MIN', 'MAX',
             'STD', 'VAR', 'SKEW', 'KURT', 'QUANTILE', 'PERCENTILE', 'CORR',
             'COV', 'CROSSTAB', 'FREQ', 'TOP', 'ENTROPY', 'RANK', 'ROW_NUMBER',
-            
+
             'LOG', 'EXP', 'SQRT', 'ABS', 'ROUND', 'FLOOR', 'CEIL',
             'SIN', 'COS', 'TAN', 'ASIN', 'ACOS', 'ATAN', 'POWER', 'MOD',
-            
+
             'WORD_COUNT', 'SENTENCE_COUNT', 'TOP_WORDS', 'TOP_PHRASES',
             'SENTIMENT', 'SUBJECTIVITY', 'LDA', 'KEYPHRASES', 'NER',
             'COSINE_SIMILARITY',
-            
+
             'T_TEST', 'ANOVA', 'CHI2', 'MANN_WHITNEY', 'KRUSKAL',
             'KS_TEST', 'ADF_TEST', 'KPSS_TEST', 'ACF', 'PACF',
             'DECOMPOSE', 'CUSUM', 'SEASONAL_STRENGTH', 'TREND', 'EXPONENTIAL_SMOOTHING',
-            
+
             # NOUVELLES FONCTIONS STATISTIQUES
             'MOMENT', 'GINI', 'SKEWNESS', 'KURTOSIS', 'COVARIANCE',
             'F_TEST', 'SHAPIRO', 'ANDERSON',
-            
+
             # FONCTIONS DE DISTANCE
             'EUCLIDEAN', 'MANHATTAN', 'COSINE', 'JACCARD',
-            
+
             # FONCTIONS DE SÉRIES TEMPORELLES
             'LAG', 'DIFF', 'PCT_CHANGE', 'MOVING_AVG', 'EWMA', 'AUTOCORR'
         ]
@@ -661,26 +661,26 @@ class Parser:
         """
         node = {"type": "describe", "target": None, "columns": None, "options": {}}
         self.consume("DESCRIBE")
-        
+
         # Cible (table)
         node["target"] = self.consume("IDENTIFIER")["value"]
-        
+
         # Colonnes optionnelles entre crochets
         if self.peek() and self.peek()["type"] == "LBRACKET":
             self.consume("LBRACKET")
             node["columns"] = self.parse_describe_columns()
             self.consume("RBRACKET")
-        
+
         # Options WITH
         if self.peek() and self.peek()["type"] == "WITH":
             node["options"] = self.parse_with_options()
-        
+
         return node
 
     def parse_describe_columns(self):
         """Parse la liste des colonnes pour DESCRIBE"""
         columns = []
-        
+
         # Première colonne
         token = self.peek()
         if token["type"] == "IDENTIFIER":
@@ -689,7 +689,7 @@ class Parser:
             columns.append(self.strip_quotes(self.consume("STRING")["value"]))
         else:
             self.error("Expected column name", token)
-        
+
         # Colonnes supplémentaires séparées par des virgules
         while self.peek() and self.peek()["type"] == "COMMA":
             self.consume("COMMA")
@@ -700,7 +700,7 @@ class Parser:
                 columns.append(self.strip_quotes(self.consume("STRING")["value"]))
             else:
                 self.error("Expected column name", token)
-        
+
         return columns
 
     def parse_describe_all(self):
@@ -710,14 +710,14 @@ class Parser:
         """
         node = {"type": "describe_all", "target": None, "options": {}}
         self.consume("DESCRIBE_ALL")
-        
+
         # Cible (table)
         node["target"] = self.consume("IDENTIFIER")["value"]
-        
+
         # Options WITH
         if self.peek() and self.peek()["type"] == "WITH":
             node["options"] = self.parse_with_options()
-        
+
         return node
 
     def parse_summary(self):
@@ -727,10 +727,10 @@ class Parser:
         """
         node = {"type": "summary", "target": None}
         self.consume("SUMMARY")
-        
+
         # Cible (table)
         node["target"] = self.consume("IDENTIFIER")["value"]
-        
+
         return node
 
     # ========== FONCTIONS EXISTANTES ==========
@@ -1358,7 +1358,7 @@ class Parser:
         self.consume("WITH")
 
         opt_names = ["SHOW", "FORMAT", "TITLE", "WIDTH", "HEIGHT", "SAVE", "DETAILED"]
-        
+
         opt_name = self.consume_any(opt_names)["value"]
         self.consume("ASSIGN")
         opt_value = self.parse_literal()["value"]

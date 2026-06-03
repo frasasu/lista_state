@@ -72,7 +72,7 @@ class DataTableManager {
             return null;  // Valeur manquante
         }
         if (textContent === "␣") {
-            return null;    // Chaîne vide intentionnelle
+            return null;    // Valeur manquante
         }
         return textContent;  // Valeur normale
     }
@@ -654,7 +654,7 @@ class DataTableManager {
             for (let colIndex = 0; colIndex < nbColumns; colIndex++) {
                 const cellIndex = rowIndex * nbColumns + colIndex;
                 const cellText = editableCells[cellIndex]?.textContent;
-                
+
                 // Utiliser parseCellValue pour interpréter l'affichage
                 const cellValue = this.parseCellValue(cellText);
                 changedDatas[columnsNames[colIndex]].push(cellValue);

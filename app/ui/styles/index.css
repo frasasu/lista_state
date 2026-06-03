@@ -1471,19 +1471,19 @@ body {
     .settings-content {
         max-height: 400px;
     }
-    
+
     .settings-item {
         flex-wrap: wrap;
     }
-    
+
     .settings-item label {
         min-width: 100%;
     }
-    
+
     .stats-display {
         grid-template-columns: 1fr;
     }
-    
+
     .feature-list {
         grid-template-columns: 1fr;
     }

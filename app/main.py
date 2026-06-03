@@ -9,7 +9,6 @@ from core.executors import evaluate_dsl_code
 import traceback
 from datetime import datetime
 from core import TableImporter
-from core import INDEX_HTML
 
 
 def get_base_path():
@@ -221,8 +220,8 @@ api = ManagerApp()
 
 window = webview.create_window(
     "Lista State - Statistical Data Analysis",
-    #api.get_ui_path(),
-    html=INDEX_HTML,
+    api.get_ui_path(),
+    #html=INDEX_HTML,
     js_api=api,
     width=1200,
     height=1000,

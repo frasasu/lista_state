@@ -613,7 +613,7 @@ class Evaluator:
             "name": alias,
             "source": target,
             "columns": result_df.columns,
-            "types": [str(type(result_df[col][0]).__name__) if result_df[col] and len(result_df[col]) > 0 and result_df[col][0] is not None else 'None' 
+            "types": [str(type(result_df[col][0]).__name__) if result_df[col] and len(result_df[col]) > 0 and result_df[col][0] is not None else 'None'
                      for col in result_df.columns],
             "preview": preview,
             "shape": list(result_df.shape),
@@ -622,7 +622,7 @@ class Evaluator:
             "operations": operations_applied
         })
 
-        self.add_output("success", f"Table '{alias}' nettoyée avec succès ({result_df.shape[0]} lignes)", 
+        self.add_output("success", f"Table '{alias}' nettoyée avec succès ({result_df.shape[0]} lignes)",
                       self.current_line)
 
     # ========== COMMANDE STATS ==========
