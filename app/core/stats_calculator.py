@@ -1,1648 +1,604 @@
-# stats_calculator.py
+
+from __future__ import annotations
+
 import math
-import random
-from typing import Dict, List, Any, Optional, Union, Callable, Tuple, Set
-from collections import Counter
-from .simple_dataframe import SimpleDataFrame, to_numeric, is_numeric
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, Union
+
+import numpy as np
+import pandas as pd
+from scipy import stats as sps
+
+from .dataframe import DataTable
+
+
+def _clean(data: Sequence[Any]) -> np.ndarray:
+    """Convertit une séquence hétérogène en tableau numpy de float, en
+    ignorant les valeurs manquantes / non numériques (via pandas, qui gère
+    déjà tous les cas limites correctement)."""
+    s = pd.to_numeric(pd.Series(list(data)), errors="coerce")
+    return s.dropna().to_numpy(dtype=float)
 
 
 class StatsCalculator:
-    """
-    Calculateur de statistiques descriptives pour SimpleDataFrame.
-    Fournit plus de 100 fonctions statistiques sans dépendances externes.
+    """Statistiques descriptives et inférentielles, propulsées par
+    numpy / scipy.stats / statsmodels."""
 
-    NOTE: Tous les calculs sont implémentés avec des algorithmes numériquement
-    stables et précis en pur Python.
-    """
-
-    def __init__(self, df: Optional[SimpleDataFrame] = None):
-        """
-        Initialise le calculateur avec un DataFrame optionnel.
-
-        Args:
-            df: SimpleDataFrame à analyser
-        """
+    def __init__(self, df: Optional[DataTable] = None):
         self.df = df
 
-    def set_dataframe(self, df: SimpleDataFrame):
-        """Définit le DataFrame à analyser"""
+    def set_dataframe(self, df: DataTable):
         self.df = df
 
-    # ========== STATISTIQUES UNIVARIÉES ==========
+    # ==================================================================
+    # TENDANCE CENTRALE
+    # ==================================================================
+    def mean(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(np.mean(a)) if a.size else None
 
-    # --- Mesures de tendance centrale ---
-
-    def mean(self, data: List[Union[int, float]]) -> float:
-        """Moyenne arithmétique (algorithme numériquement stable)"""
-        if not data:
-            return float('nan')
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-
-        # Algorithme de Kahan pour réduire l'erreur d'arrondi
-        total = 0.0
-        c = 0.0  # compensation
-        for x in valid:
-            y = x - c
-            t = total + y
-            c = (t - total) - y
-            total = t
-        return total / len(valid)
-
-    def median(self, data: List[Union[int, float]]) -> float:
-        """Médiane"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-        sorted_vals = sorted(valid)
-        n = len(sorted_vals)
-        mid = n // 2
-        if n % 2 == 0:
-            return (sorted_vals[mid-1] + sorted_vals[mid]) / 2
-        return sorted_vals[mid]
+    def median(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(np.median(a)) if a.size else None
 
     def mode(self, data: List[Any]) -> List[Any]:
-        """Mode (valeurs les plus fréquentes)"""
-        if not data:
+        s = pd.Series([d for d in data if d is not None])
+        if s.empty:
             return []
-        valid = [x for x in data if x is not None]
-        counter = Counter(valid)
-        max_count = max(counter.values())
-        return [k for k, v in counter.items() if v == max_count]
+        return s.mode().tolist()
 
-    def geometric_mean(self, data: List[Union[int, float]]) -> float:
-        """Moyenne géométrique (utilise les logs pour la stabilité)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float)) and x > 0]
-        if not valid:
-            return float('nan')
+    def geometric_mean(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        a = a[a > 0]
+        return float(sps.gmean(a)) if a.size else None
 
-        # Utilisation des logarithmes pour éviter le débordement
-        log_sum = sum(math.log(x) for x in valid)
-        return math.exp(log_sum / len(valid))
+    def harmonic_mean(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        a = a[a > 0]
+        return float(sps.hmean(a)) if a.size else None
 
-    def harmonic_mean(self, data: List[Union[int, float]]) -> float:
-        """Moyenne harmonique"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float)) and x > 0]
-        if not valid:
-            return float('nan')
+    def quadratic_mean(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(np.sqrt(np.mean(np.square(a)))) if a.size else None
 
-        # Algorithme stable
-        sum_recip = 0.0
-        for x in valid:
-            sum_recip += 1.0 / x
-        return len(valid) / sum_recip
+    def weighted_mean(self, data: List[Union[int, float]], weights: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        w = _clean(weights)
+        n = min(len(a), len(w))
+        if n == 0:
+            return None
+        return float(np.average(a[:n], weights=w[:n]))
 
-    def quadratic_mean(self, data: List[Union[int, float]]) -> float:
-        """Moyenne quadratique (RMS)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
+    def trimmed_mean(self, data: List[Union[int, float]], proportion: float = 0.1) -> Optional[float]:
+        a = _clean(data)
+        if not a.size:
+            return None
+        return float(sps.trim_mean(a, proportion))
 
-        # Algorithme de Kahan pour les carrés
-        sum_squares = 0.0
-        c = 0.0
-        for x in valid:
-            y = x * x - c
-            t = sum_squares + y
-            c = (t - sum_squares) - y
-            sum_squares = t
-        return math.sqrt(sum_squares / len(valid))
+    def midrange(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float((a.max() + a.min()) / 2) if a.size else None
 
-    def weighted_mean(self, data: List[Union[int, float]], weights: List[Union[int, float]]) -> float:
-        """Moyenne pondérée"""
-        if len(data) != len(weights):
-            raise ValueError("Les données et les poids doivent avoir la même longueur")
-        pairs = [(x, w) for x, w in zip(data, weights)
-                 if x is not None and w is not None
-                 and isinstance(x, (int, float)) and isinstance(w, (int, float))]
-        if not pairs:
-            return float('nan')
+    # ==================================================================
+    # DISPERSION
+    # ==================================================================
+    def variance(self, data: List[Union[int, float]], ddof: int = 1) -> Optional[float]:
+        a = _clean(data)
+        return float(np.var(a, ddof=ddof)) if a.size > ddof else 0.0
 
-        sum_weighted = 0.0
-        sum_weights = 0.0
-        c1 = c2 = 0.0
+    def std(self, data: List[Union[int, float]], ddof: int = 1) -> Optional[float]:
+        a = _clean(data)
+        return float(np.std(a, ddof=ddof)) if a.size > ddof else 0.0
 
-        for x, w in pairs:
-            y1 = x * w - c1
-            t1 = sum_weighted + y1
-            c1 = (t1 - sum_weighted) - y1
-            sum_weighted = t1
+    def range_stat(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(a.max() - a.min()) if a.size else None
 
-            y2 = w - c2
-            t2 = sum_weights + y2
-            c2 = (t2 - sum_weights) - y2
-            sum_weights = t2
+    def iqr(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(sps.iqr(a)) if a.size else None
 
-        return sum_weighted / sum_weights if sum_weights != 0 else float('nan')
+    def mad(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(np.mean(np.abs(a - np.mean(a)))) if a.size else None
 
-    def trimmed_mean(self, data: List[Union[int, float]], proportion: float = 0.1) -> float:
-        """Moyenne tronquée (ignore les extrêmes)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-        sorted_vals = sorted(valid)
-        n = len(sorted_vals)
-        trim = int(n * proportion)
-        if trim * 2 >= n:
-            return float('nan')
-        trimmed = sorted_vals[trim:n-trim]
-        return self.mean(trimmed)
+    def cv(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        m = np.mean(a) if a.size else 0
+        return float(np.std(a, ddof=1) / m) if a.size > 1 and m != 0 else None
 
-    def midrange(self, data: List[Union[int, float]]) -> float:
-        """Milieu de l'étendue (min+max)/2"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-        return (min(valid) + max(valid)) / 2
-
-    # --- Mesures de dispersion ---
-
-    def variance(self, data: List[Union[int, float]], ddof: int = 1) -> float:
-        """
-        Variance avec algorithme en une passe numériquement stable
-        (algorithme de Welford)
-        """
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) <= ddof:
-            return float('nan')
-
-        n = 0
-        mean = 0.0
-        m2 = 0.0
-
-        for x in valid:
-            n += 1
-            delta = x - mean
-            mean += delta / n
-            delta2 = x - mean
-            m2 += delta * delta2
-
-        return m2 / (n - ddof)
-
-    def std(self, data: List[Union[int, float]], ddof: int = 1) -> float:
-        """Écart-type"""
-        var = self.variance(data, ddof)
-        return math.sqrt(var) if not math.isnan(var) else float('nan')
-
-    def range_stat(self, data: List[Union[int, float]]) -> float:
-        """Étendue (max - min)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-        return max(valid) - min(valid)
-
-    def iqr(self, data: List[Union[int, float]]) -> float:
-        """Intervalle interquartile (Q3 - Q1)"""
-        q1, q3 = self.quantiles(data, [0.25, 0.75])
-        return q3 - q1
-
-    def mad(self, data: List[Union[int, float]]) -> float:
-        """Écart absolu médian"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
-        median_val = self.median(valid)
-        abs_dev = [abs(x - median_val) for x in valid]
-        return self.median(abs_dev)
-
-    def cv(self, data: List[Union[int, float]]) -> float:
-        """Coefficient de variation (écart-type / moyenne)"""
-        mean_val = self.mean(data)
-        if mean_val == 0 or math.isnan(mean_val):
-            return float('nan')
-        return self.std(data, 0) / mean_val
-
-    def quantile(self, data: List[Union[int, float]], q: float) -> float:
-        """Quantile avec interpolation linéaire (méthode R7, comme R et numpy)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid or q < 0 or q > 1:
-            return float('nan')
-
-        sorted_vals = sorted(valid)
-        n = len(sorted_vals)
-
-        # Méthode R7 (la plus courante)
-        index = 1 + (n - 1) * q
-        lo = int(math.floor(index))
-        hi = int(math.ceil(index))
-
-        if lo == hi:
-            return sorted_vals[lo-1]
-
-        # Interpolation linéaire
-        return sorted_vals[lo-1] + (index - lo) * (sorted_vals[hi-1] - sorted_vals[lo-1])
+    def quantile(self, data: List[Union[int, float]], q: float) -> Optional[float]:
+        a = _clean(data)
+        return float(np.quantile(a, q)) if a.size else None
 
     def quantiles(self, data: List[Union[int, float]], probs: List[float]) -> List[float]:
-        """Plusieurs quantiles"""
-        return [self.quantile(data, p) for p in probs]
+        a = _clean(data)
+        return [float(x) for x in np.quantile(a, probs)] if a.size else []
 
-    def percentile(self, data: List[Union[int, float]], p: float) -> float:
-        """Percentile (p entre 0 et 100)"""
+    def percentile(self, data: List[Union[int, float]], p: float) -> Optional[float]:
         return self.quantile(data, p / 100)
 
     def percentiles(self, data: List[Union[int, float]], ps: List[float]) -> List[float]:
-        """Plusieurs percentiles"""
-        return [self.percentile(data, p) for p in ps]
+        return self.quantiles(data, [p / 100 for p in ps])
 
-    # --- Mesures de forme ---
+    def skewness(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(sps.skew(a, bias=False)) if a.size > 2 else None
 
-    def skewness(self, data: List[Union[int, float]]) -> float:
-        """
-        Asymétrie (skewness) avec correction du biais
-        (formule de Fisher-Pearson)
-        """
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) < 3:
-            return float('nan')
+    def kurtosis(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = _clean(data)
+        return float(sps.kurtosis(a, bias=False)) if a.size > 3 else None
 
-        n = len(valid)
-        mean_val = self.mean(valid)
+    def moment(self, data: List[Union[int, float]], k: int) -> Optional[float]:
+        a = _clean(data)
+        return float(sps.moment(a, moment=k)) if a.size else None
 
-        # Calcul des moments avec l'algorithme de Welford étendu
-        m2 = m3 = 0.0
-        for x in valid:
-            delta = x - mean_val
-            delta_n = delta / n
-            term1 = delta * delta_n * (n - 1)
-            m3 += term1 * delta_n * (n - 2) - 3 * delta_n * m2
-            m2 += delta * (x - mean_val)  # Correction pour m2
-
-        m2 /= n
-        m3 /= n
-
-        if m2 == 0:
-            return 0.0
-
-        # Correction du biais pour échantillon
-        g1 = m3 / (m2 ** 1.5)
-        return math.sqrt(n * (n - 1)) / (n - 2) * g1
-
-    def kurtosis(self, data: List[Union[int, float]]) -> float:
-        """
-        Kurtosis (excès par rapport à la normale)
-        avec correction du biais
-        """
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) < 4:
-            return float('nan')
-
-        n = len(valid)
-        mean_val = self.mean(valid)
-
-        # Calcul des moments
-        m2 = m4 = 0.0
-        for x in valid:
-            delta = x - mean_val
-            delta2 = delta * delta
-            m2 += delta2
-            m4 += delta2 * delta2
-
-        m2 /= n
-        m4 /= n
-
-        if m2 == 0:
-            return 0.0
-
-        # Kurtosis avec correction du biais
-        g2 = m4 / (m2 * m2) - 3
-        # Correction pour échantillon
-        return ((n + 1) * g2 + 6) * (n - 1) / ((n - 2) * (n - 3))
-
-    def moment(self, data: List[Union[int, float]], k: int) -> float:
-        """Moment centré d'ordre k"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid or k < 0:
-            return float('nan')
-
-        if k == 0:
-            return 1.0
-
-        mean_val = self.mean(valid)
-        n = len(valid)
-
-        # Algorithme stable pour les moments
-        if k == 1:
-            return 0.0
-            moment = 0.0
-        for x in valid:
-            moment += (x - mean_val) ** k
-        return moment / n
-
-    # --- Autres statistiques univariées ---
-
+    # ==================================================================
+    # COMPTAGE / FRÉQUENCES
+    # ==================================================================
     def count(self, data: List[Any]) -> int:
-        """Nombre d'éléments non nuls"""
-        return sum(1 for x in data if x is not None)
+        return sum(1 for d in data if d is not None)
 
     def count_all(self, data: List[Any]) -> int:
-        """Nombre total d'éléments (y compris nuls)"""
         return len(data)
 
     def count_unique(self, data: List[Any]) -> int:
-        """Nombre de valeurs uniques"""
-        valid = [x for x in data if x is not None]
-        return len(set(valid))
+        return pd.Series(data).nunique(dropna=True)
 
     def freq_table(self, data: List[Any]) -> Dict[Any, int]:
-        """Table de fréquences"""
-        valid = [x for x in data if x is not None]
-        return dict(Counter(valid))
+        return pd.Series(data).value_counts(dropna=True).to_dict()
 
     def missing_count(self, data: List[Any]) -> int:
-        """Nombre de valeurs manquantes"""
-        return sum(1 for x in data if x is None)
+        return int(pd.isna(pd.Series(data)).sum())
 
     def missing_ratio(self, data: List[Any]) -> float:
-        """Proportion de valeurs manquantes"""
-        return self.missing_count(data) / len(data) if data else 0
+        n = len(data)
+        return float(self.missing_count(data) / n) if n else 0.0
 
     def entropy(self, data: List[Any], base: float = 2.0) -> float:
-        """Entropie de Shannon (pour données catégorielles)"""
-        valid = [x for x in data if x is not None]
-        if not valid:
-            return 0.0
+        counts = pd.Series(data).value_counts(dropna=True)
+        return float(sps.entropy(counts.to_numpy(), base=base)) if len(counts) else 0.0
 
-        n = len(valid)
-        counter = Counter(valid)
+    def gini(self, data: List[Union[int, float]]) -> Optional[float]:
+        a = np.sort(_clean(data))
+        if a.size == 0 or a.sum() == 0:
+            return None
+        n = a.size
+        cum = np.cumsum(a)
+        return float((n + 1 - 2 * np.sum(cum) / cum[-1]) / n)
 
-        entropy = 0.0
-        for count in counter.values():
-            p = count / n
-            if p > 0:
-                entropy -= p * math.log(p) / math.log(base)
-
-        return entropy
-
-    def gini(self, data: List[Union[int, float]]) -> float:
-        """
-        Coefficient de Gini (inégalité)
-        Formule correcte: (2 * Σ(i * x_i)) / (n * Σx) - (n+1)/n
-        """
-        valid = [x for x in data if x is not None and isinstance(x, (int, float)) and x >= 0]
-        if not valid or sum(valid) == 0:
-            return 0.0
-
-        sorted_vals = sorted(valid)
-        n = len(sorted_vals)
-        total = sum(sorted_vals)
-
-        # Formule correcte du coefficient de Gini
-        weighted_sum = 0.0
-        for i, x in enumerate(sorted_vals):
-            weighted_sum += (i + 1) * x
-
-        gini = (2 * weighted_sum) / (n * total) - (n + 1) / n
-        return gini
-
-    # ========== STATISTIQUES BIVARIÉES ==========
-
-    def covariance(self, x: List[Union[int, float]], y: List[Union[int, float]], ddof: int = 1) -> float:
-        """Covariance avec algorithme en une passe stable"""
-        if len(x) != len(y):
-            raise ValueError("Les séries doivent avoir la même longueur")
-
-        pairs = [(xi, yi) for xi, yi in zip(x, y)
-                 if xi is not None and yi is not None
-                 and isinstance(xi, (int, float)) and isinstance(yi, (int, float))]
-
-        if len(pairs) <= ddof:
-            return float('nan')
-
-        n = 0
-        mean_x = mean_y = 0.0
-        C = 0.0
-
-        for xi, yi in pairs:
-            n += 1
-            dx = xi - mean_x
-            dy = yi - mean_y
-            mean_x += dx / n
-            mean_y += dy / n
-            C += dx * (yi - mean_y)
-
-        return C / (n - ddof)
+    # ==================================================================
+    # RELATIONS ENTRE VARIABLES
+    # ==================================================================
+    def covariance(self, x: List[Union[int, float]], y: List[Union[int, float]], ddof: int = 1) -> Optional[float]:
+        df = pd.DataFrame({"x": pd.to_numeric(pd.Series(x), errors="coerce"),
+                            "y": pd.to_numeric(pd.Series(y), errors="coerce")}).dropna()
+        if len(df) < 2:
+            return None
+        return float(np.cov(df["x"], df["y"], ddof=ddof)[0, 1])
 
     def correlation(self, x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-        """Corrélation de Pearson (algorithme stable)"""
-        if len(x) != len(y):
-            raise ValueError("Les séries doivent avoir la même longueur")
-
-        pairs = [(xi, yi) for xi, yi in zip(x, y)
-                 if xi is not None and yi is not None
-                 and isinstance(xi, (int, float)) and isinstance(yi, (int, float))]
-
-        if len(pairs) < 2:
-            return float('nan')
-
-        n = 0
-        mean_x = mean_y = 0.0
-        C = 0.0
-        var_x = var_y = 0.0
-
-        for xi, yi in pairs:
-            n += 1
-            dx = xi - mean_x
-            dy = yi - mean_y
-            mean_x += dx / n
-            mean_y += dy / n
-            var_x += dx * (xi - mean_x)
-            var_y += dy * (yi - mean_y)
-            C += dx * (yi - mean_y)
-
-        if var_x == 0 or var_y == 0:
-            return 0.0
-
-        return C / math.sqrt(var_x * var_y)
+        df = pd.DataFrame({"x": pd.to_numeric(pd.Series(x), errors="coerce"),
+                            "y": pd.to_numeric(pd.Series(y), errors="coerce")}).dropna()
+        if len(df) < 2 or df["x"].std() == 0 or df["y"].std() == 0:
+            return float("nan")
+        r, _ = sps.pearsonr(df["x"], df["y"])
+        return float(r)
 
     def spearman_correlation(self, x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-        """Corrélation de Spearman (rang)"""
-        if len(x) != len(y):
-            raise ValueError("Les séries doivent avoir la même longueur")
-
-        pairs = [(xi, yi) for xi, yi in zip(x, y)
-                 if xi is not None and yi is not None
-                 and isinstance(xi, (int, float)) and isinstance(yi, (int, float))]
-
-        if len(pairs) < 2:
-            return float('nan')
-
-        x_vals, y_vals = zip(*pairs)
-        x_rank = self._rank(list(x_vals))
-        y_rank = self._rank(list(y_vals))
-
-        return self.correlation(x_rank, y_rank)
-
-    def _rank(self, data: List[Union[int, float]]) -> List[float]:
-        """Calcule les rangs (gère les ex-aequo avec la méthode 'average')"""
-        n = len(data)
-        # Créer une liste d'indices triés par valeur
-        indexed = list(enumerate(data))
-        indexed.sort(key=lambda x: x[1])
-
-        ranks = [0.0] * n
-        i = 0
-        while i < n:
-            j = i
-            # Trouver tous les éléments égaux
-            while j < n and abs(indexed[j][1] - indexed[i][1]) < 1e-12:
-                j += 1
-
-            # Calculer le rang moyen pour ce groupe
-            rank = (i + j - 1) / 2 + 1
-            for k in range(i, j):
-                ranks[indexed[k][0]] = rank
-            i = j
-
-        return ranks
+        df = pd.DataFrame({"x": pd.to_numeric(pd.Series(x), errors="coerce"),
+                            "y": pd.to_numeric(pd.Series(y), errors="coerce")}).dropna()
+        if len(df) < 2:
+            return float("nan")
+        r, _ = sps.spearmanr(df["x"], df["y"])
+        return float(r)
 
     def kendall_tau(self, x: List[Union[int, float]], y: List[Union[int, float]]) -> float:
-        """Corrélation de Kendall (tau-b avec gestion des ex-aequo)"""
-        if len(x) != len(y):
-            raise ValueError("Les séries doivent avoir la même longueur")
-
-        pairs = [(xi, yi) for xi, yi in zip(x, y)
-                 if xi is not None and yi is not None
-                 and isinstance(xi, (int, float)) and isinstance(yi, (int, float))]
-
-        if len(pairs) < 2:
-            return float('nan')
-
-        n = len(pairs)
-        concordant = discordant = 0
-        tied_x = tied_y = 0
-
-        for i in range(n):
-            for j in range(i+1, n):
-                xi, yi = pairs[i]
-                xj, yj = pairs[j]
-
-                if xi == xj and yi == yj:
-                    continue
-                elif xi == xj:
-                    tied_x += 1
-                elif yi == yj:
-                    tied_y += 1
-                else:
-                    if (xi - xj) * (yi - yj) > 0:
-                        concordant += 1
-                    else:
-                        discordant += 1
-
-        total = concordant + discordant + tied_x + tied_y
-        if total == 0:
-            return 0.0
-
-        # Tau-b avec correction pour ex-aequo
-        return (concordant - discordant) / math.sqrt((concordant + discordant + tied_x) *
-                                                     (concordant + discordant + tied_y))
+        df = pd.DataFrame({"x": pd.to_numeric(pd.Series(x), errors="coerce"),
+                            "y": pd.to_numeric(pd.Series(y), errors="coerce")}).dropna()
+        if len(df) < 2:
+            return float("nan")
+        tau, _ = sps.kendalltau(df["x"], df["y"])
+        return float(tau)
 
     def covariance_matrix(self, columns: List[str]) -> Dict[str, Dict[str, float]]:
-        """Matrice de covariance pour plusieurs colonnes"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
+        sub = self.df.frame[columns].apply(pd.to_numeric, errors="coerce")
+        return sub.cov().round(6).to_dict()
 
-        result = {}
-        for col1 in columns:
-            result[col1] = {}
-            data1 = self.df[col1]
-            for col2 in columns:
-                data2 = self.df[col2]
-                result[col1][col2] = self.covariance(data1, data2)
-        return result
+    def correlation_matrix(self, columns: List[str], method: str = "pearson") -> Dict[str, Dict[str, float]]:
+        sub = self.df.frame[columns].apply(pd.to_numeric, errors="coerce")
+        return sub.corr(method=method).round(6).to_dict()
 
-    def correlation_matrix(self, columns: List[str]) -> Dict[str, Dict[str, float]]:
-        """Matrice de corrélation pour plusieurs colonnes"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
-
-        result = {}
-        for col1 in columns:
-            result[col1] = {}
-            data1 = self.df[col1]
-            for col2 in columns:
-                data2 = self.df[col2]
-                result[col1][col2] = self.correlation(data1, data2)
-        return result
-
-    # ========== STATISTIQUES SUR LE DATAFRAME ==========
-
+    # ==================================================================
+    # DESCRIBE / DESCRIBE_ALL / SUMMARY
+    # ==================================================================
     def describe(self, columns: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
-        """Statistiques descriptives pour les colonnes numériques"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
+        """Statistiques descriptives complètes, via `pandas.DataFrame.describe`
+        enrichi de skewness/kurtosis/IQR (scipy)."""
+        frame = self.df.frame
+        numeric_cols = list(frame.select_dtypes(include=[np.number]).columns)
+        cols = [c for c in (columns or numeric_cols) if c in frame.columns]
 
-        cols = columns if columns else self.df.columns
-        result = {}
-
+        result: Dict[str, Dict[str, float]] = {}
         for col in cols:
-            data = self.df[col]
-            numeric_data = [to_numeric(x) for x in data if x is not None]
-            numeric_data = [x for x in numeric_data if isinstance(x, (int, float))]
-
-            if numeric_data:
-                result[col] = {
-                    'count': len(numeric_data),
-                    'mean': self.mean(numeric_data),
-                    'std': self.std(numeric_data, 1),
-                    'min': min(numeric_data),
-                    '25%': self.quantile(numeric_data, 0.25),
-                    '50%': self.median(numeric_data),
-                    '75%': self.quantile(numeric_data, 0.75),
-                    'max': max(numeric_data),
-                    'skew': self.skewness(numeric_data),
-                    'kurt': self.kurtosis(numeric_data)
-                }
-
+            series = pd.to_numeric(frame[col], errors="coerce").dropna()
+            if series.empty:
+                continue
+            desc = series.describe()
+            result[col] = {
+                "count": float(desc["count"]),
+                "mean": float(desc["mean"]),
+                "std": float(desc["std"]) if not pd.isna(desc["std"]) else 0.0,
+                "min": float(desc["min"]),
+                "25%": float(desc["25%"]),
+                "50%": float(desc["50%"]),
+                "75%": float(desc["75%"]),
+                "max": float(desc["max"]),
+                "skewness": float(sps.skew(series, bias=False)) if len(series) > 2 else 0.0,
+                "kurtosis": float(sps.kurtosis(series, bias=False)) if len(series) > 3 else 0.0,
+                "iqr": float(sps.iqr(series)),
+                "missing": int(frame[col].isna().sum()),
+            }
         return result
 
     def describe_all(self) -> Dict[str, Dict[str, Any]]:
-        """Statistiques pour toutes les colonnes (numériques et catégorielles)"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
-
-        result = {}
-        for col in self.df.columns:
-            data = self.df[col]
-            numeric_data = [to_numeric(x) for x in data if x is not None]
-            numeric_data = [x for x in numeric_data if isinstance(x, (int, float))]
-
-            if numeric_data:
-                # Colonne numérique
-                result[col] = {
-                    'type': 'numeric',
-                    'count': len(numeric_data),
-                    'missing': self.missing_count(data),
-                    'mean': self.mean(numeric_data),
-                    'std': self.std(numeric_data, 1),
-                    'min': min(numeric_data),
-                    'max': max(numeric_data),
-                    'median': self.median(numeric_data),
-                    'skew': self.skewness(numeric_data),
-                    'kurt': self.kurtosis(numeric_data)
-                }
+        """Décrit toutes les colonnes (numériques ET catégorielles)."""
+        frame = self.df.frame
+        result: Dict[str, Dict[str, Any]] = {}
+        numeric_cols = set(frame.select_dtypes(include=[np.number]).columns)
+        for col in frame.columns:
+            if col in numeric_cols:
+                result[col] = {"dtype": "numeric", **self.describe([col]).get(col, {})}
             else:
-                # Colonne catégorielle
-                unique_vals = [x for x in data if x is not None]
-                freq = Counter(unique_vals)
+                vc = frame[col].value_counts(dropna=True)
                 result[col] = {
-                    'type': 'categorical',
-                    'count': len(unique_vals),
-                    'missing': self.missing_count(data),
-                    'unique': len(freq),
-                    'top': max(freq.items(), key=lambda x: x[1])[0] if freq else None,
-                    'freq': max(freq.values()) if freq else 0,
-                    'entropy': self.entropy(data)
+                    "dtype": "categorical",
+                    "count": int(frame[col].notna().sum()),
+                    "unique": int(frame[col].nunique(dropna=True)),
+                    "top": vc.index[0] if len(vc) else None,
+                    "freq": int(vc.iloc[0]) if len(vc) else 0,
+                    "missing": int(frame[col].isna().sum()),
                 }
-
         return result
 
     def summary(self) -> Dict[str, Any]:
-        """Résumé du DataFrame"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
-
-        n_rows, n_cols = self.df.shape
+        frame = self.df.frame
         return {
-            'shape': (n_rows, n_cols),
-            'columns': self.df.columns,
-            'total_cells': n_rows * n_cols,
-            'missing_cells': sum(self.missing_count(self.df[col]) for col in self.df.columns),
-            'numeric_columns': sum(1 for col in self.df.columns
-                                   if any(isinstance(to_numeric(x), (int, float))
-                                          for x in self.df[col] if x is not None)),
-            'categorical_columns': sum(1 for col in self.df.columns
-                                       if not any(isinstance(to_numeric(x), (int, float))
-                                                  for x in self.df[col] if x is not None))
+            "shape": list(frame.shape),
+            "columns": list(frame.columns),
+            "dtypes": {c: str(t) for c, t in frame.dtypes.items()},
+            "missing_total": int(frame.isna().sum().sum()),
+            "missing_by_column": {c: int(v) for c, v in frame.isna().sum().items()},
+            "numeric_columns": list(frame.select_dtypes(include=[np.number]).columns),
+            "categorical_columns": list(frame.select_dtypes(exclude=[np.number]).columns),
         }
 
-    # ========== TESTS STATISTIQUES PRÉCIS ==========
-
-    def _beta_inc(self, a: float, b: float, x: float) -> float:
-        """
-        Fonction de répartition de la loi Beta (incomplète régularisée)
-        Implémentation de la série de continued fraction de Lentz
-        """
-        if x < 0 or x > 1:
-            return float('nan')
-        if x == 0:
-            return 0.0
-        if x == 1:
-            return 1.0
-
-        # Utiliser la symétrie
-        if x > (a + 1) / (a + b + 2):
-            return 1 - self._beta_inc(b, a, 1 - x)
-
-        # Continued fraction ( méthode de Lentz )
-        fpmin = 1e-30
-        qab = a + b
-        qap = a + 1
-        qam = a - 1
-        c = 1.0
-        d = 1.0 - qab * x / qap
-        if abs(d) < fpmin:
-            d = fpmin
-        d = 1.0 / d
-        h = d
-
-        for m in range(1, 300):
-            m2 = 2 * m
-            aa = m * (b - m) * x / ((qam + m2) * (a + m2))
-            d = 1.0 + aa * d
-            if abs(d) < fpmin:
-                d = fpmin
-            c = 1.0 + aa / c
-            if abs(c) < fpmin:
-                c = fpmin
-            d = 1.0 / d
-            h *= d * c
-
-            aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2))
-            d = 1.0 + aa * d
-            if abs(d) < fpmin:
-                d = fpmin
-            c = 1.0 + aa / c
-            if abs(c) < fpmin:
-                c = fpmin
-            d = 1.0 / d
-            delta = d * c
-            h *= delta
-            if abs(delta - 1.0) < 1e-8:
-                break
-
-        return h * math.exp(a * math.log(x) + b * math.log(1 - x) -
-                           (math.lgamma(a + b) - math.lgamma(a) - math.lgamma(b)))
-
-    def _t_cdf(self, t: float, df: float) -> float:
-        """Fonction de répartition exacte du t de Student"""
-        if df <= 0:
-            return float('nan')
-
-        x = (t + math.sqrt(t * t + df)) / (2 * math.sqrt(t * t + df))
-        prob = self._beta_inc(df / 2, df / 2, x)
-
-        if t > 0:
-            return 1 - 0.5 * prob
-        else:
-            return 0.5 * prob
-
-    def _f_cdf(self, f: float, df1: float, df2: float) -> float:
-        """Fonction de répartition exacte de Fisher"""
-        if f <= 0 or df1 <= 0 or df2 <= 0:
-            return float('nan')
-
-        x = df1 * f / (df1 * f + df2)
-        return 1 - self._beta_inc(df2 / 2, df1 / 2, 1 - x)
-
-    def _chi2_cdf(self, chi2: float, df: float) -> float:
-        """Fonction de répartition exacte du chi-carré"""
-        if chi2 < 0 or df <= 0:
-            return float('nan')
-        if chi2 == 0:
-            return 0.0
-
-        return self._gamma_inc(df / 2, chi2 / 2)
-
-    def _gamma_inc(self, a: float, x: float) -> float:
-        """
-        Fonction gamma incomplète régularisée (P(a,x))
-        Utilise la série pour x < a+1 et la continued fraction sinon
-        """
-        if x < 0 or a <= 0:
-            return float('nan')
-        if x == 0:
-            return 0.0
-
-        if x < a + 1:
-            # Série
-            ap = a
-            total = 1.0 / a
-            delta = total
-            n = 1
-            while abs(delta) > 1e-15:
-                ap += 1
-                delta = delta * x / ap
-                total += delta
-                n += 1
-                if n > 1000:  # Sécurité
-                    break
-            return total * math.exp(-x + a * math.log(x) - math.lgamma(a))
-        else:
-            # Continued fraction
-            fpmin = 1e-30
-            b = x + 1 - a
-            c = 1.0 / fpmin
-            d = 1.0 / b
-            h = d
-            for i in range(1, 300):
-                an = -i * (i - a)
-                b += 2
-                d = an * d + b
-                if abs(d) < fpmin:
-                    d = fpmin
-                c = b + an / c
-                if abs(c) < fpmin:
-                    c = fpmin
-                d = 1.0 / d
-                delta = d * c
-                h *= delta
-                if abs(delta - 1.0) < 1e-12:
-                    break
-            return 1 - h * math.exp(-x + a * math.log(x) - math.lgamma(a))
-
+    # ==================================================================
+    # TESTS D'HYPOTHÈSES (INFÉRENTIEL) — via scipy.stats
+    # ==================================================================
     def t_test_onesample(self, data: List[Union[int, float]], mu: float) -> Dict[str, float]:
-        """Test t pour un échantillon (p-value exacte)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) < 2:
-            return {'t_stat': float('nan'), 'p_value': float('nan'), 'df': 0}
+        a = _clean(data)
+        if a.size < 2:
+            return {"statistic": None, "p_value": None, "df": 0}
+        res = sps.ttest_1samp(a, popmean=mu)
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue), "df": int(a.size - 1)}
 
-        n = len(valid)
-        mean_val = self.mean(valid)
-        std_val = self.std(valid, 1)
+    def t_test_independent(self, group1: List[Union[int, float]], group2: List[Union[int, float]],
+                            equal_var: bool = True) -> Dict[str, float]:
+        a, b = _clean(group1), _clean(group2)
+        if a.size < 2 or b.size < 2:
+            return {"statistic": None, "p_value": None, "df": 0}
+        res = sps.ttest_ind(a, b, equal_var=equal_var)
+        df = (a.size + b.size - 2) if equal_var else None
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue), "df": df}
 
-        if std_val == 0:
-            return {'t_stat': float('nan'), 'p_value': float('nan'), 'df': n-1}
-
-        t_stat = (mean_val - mu) / (std_val / math.sqrt(n))
-        df = n - 1
-
-        # p-value exacte via la fonction de répartition
-        p_value = 2 * (1 - self._t_cdf(abs(t_stat), df))
-
-        return {
-            't_stat': t_stat,
-            'p_value': min(p_value, 1.0),  # Protection contre les erreurs numériques
-            'df': df,
-            'mean': mean_val,
-            'std': std_val
-        }
-
-    def t_test_independent(self, group1: List[Union[int, float]], group2: List[Union[int, float]]) -> Dict[str, float]:
-        """Test t pour deux échantillons indépendants (test de Welch exact)"""
-        g1 = [x for x in group1 if x is not None and isinstance(x, (int, float))]
-        g2 = [x for x in group2 if x is not None and isinstance(x, (int, float))]
-
-        if len(g1) < 2 or len(g2) < 2:
-            return {'t_stat': float('nan'), 'p_value': float('nan'), 'df': 0}
-
-        n1, n2 = len(g1), len(g2)
-        mean1, mean2 = self.mean(g1), self.mean(g2)
-        var1, var2 = self.variance(g1, 1), self.variance(g2, 1)
-
-        # Test de Welch (variances inégales)
-        t_stat = (mean1 - mean2) / math.sqrt(var1/n1 + var2/n2)
-
-        # Degrés de liberté de Welch-Satterthwaite
-        df_num = (var1/n1 + var2/n2)**2
-        df_den = (var1/n1)**2/(n1-1) + (var2/n2)**2/(n2-1)
-        df = df_num / df_den if df_den > 0 else 0
-
-        # p-value exacte
-        p_value = 2 * (1 - self._t_cdf(abs(t_stat), df))
-
-        return {
-            't_stat': t_stat,
-            'p_value': min(p_value, 1.0),
-            'df': df,
-            'mean1': mean1,
-            'mean2': mean2
-        }
+    def paired_t_test(self, before: List[Union[int, float]], after: List[Union[int, float]]) -> Dict[str, float]:
+        df = pd.DataFrame({"a": pd.to_numeric(pd.Series(before), errors="coerce"),
+                            "b": pd.to_numeric(pd.Series(after), errors="coerce")}).dropna()
+        if len(df) < 2:
+            return {"statistic": None, "p_value": None, "df": 0}
+        res = sps.ttest_rel(df["a"], df["b"])
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue), "df": int(len(df) - 1)}
 
     def f_test(self, group1: List[Union[int, float]], group2: List[Union[int, float]]) -> Dict[str, float]:
-        """Test F pour comparaison de variances (p-value exacte)"""
-        g1 = [x for x in group1 if x is not None and isinstance(x, (int, float))]
-        g2 = [x for x in group2 if x is not None and isinstance(x, (int, float))]
+        a, b = _clean(group1), _clean(group2)
+        if a.size < 2 or b.size < 2:
+            return {"statistic": None, "p_value": None}
+        var_a, var_b = np.var(a, ddof=1), np.var(b, ddof=1)
+        f_stat = var_a / var_b if var_b != 0 else float("inf")
+        df1, df2 = a.size - 1, b.size - 1
+        p = 2 * min(sps.f.cdf(f_stat, df1, df2), 1 - sps.f.cdf(f_stat, df1, df2))
+        return {"statistic": float(f_stat), "p_value": float(p), "df1": df1, "df2": df2}
 
-        if len(g1) < 2 or len(g2) < 2:
-            return {'f_stat': float('nan'), 'p_value': float('nan'), 'df1': 0, 'df2': 0}
-
-        var1, var2 = self.variance(g1, 1), self.variance(g2, 1)
-
-        # Mettre la plus grande variance au numérateur
-        if var1 > var2:
-            f_stat = var1 / var2
-            df1, df2 = len(g1)-1, len(g2)-1
-        else:
-            f_stat = var2 / var1
-            df1, df2 = len(g2)-1, len(g1)-1
-
-        # p-value exacte (test bilatéral)
-        p_value = 2 * min(self._f_cdf(f_stat, df1, df2), 1 - self._f_cdf(f_stat, df1, df2))
-
-        return {
-            'f_stat': f_stat,
-            'p_value': min(p_value, 1.0),
-            'df1': df1,
-            'df2': df2
-        }
+    def anova_oneway(self, *groups: List[Union[int, float]]) -> Dict[str, float]:
+        """ANOVA à un facteur (scipy.stats.f_oneway)."""
+        cleaned = [_clean(g) for g in groups if len(_clean(g)) > 1]
+        if len(cleaned) < 2:
+            return {"statistic": None, "p_value": None}
+        res = sps.f_oneway(*cleaned)
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue),
+                "df_between": len(cleaned) - 1,
+                "df_within": sum(len(g) for g in cleaned) - len(cleaned)}
 
     def chi2_test(self, observed: List[int], expected: Optional[List[float]] = None) -> Dict[str, float]:
-        """Test du chi-carré (p-value exacte)"""
-        if expected is None:
-            # Test d'ajustement à une distribution uniforme
-            total = sum(observed)
-            expected = [total / len(observed)] * len(observed)
+        obs = np.asarray(observed, dtype=float)
+        if expected is not None:
+            exp = np.asarray(expected, dtype=float)
+            stat, p = sps.chisquare(obs, exp)
+            dof = obs.size - 1
+        else:
+            stat, p, dof, _ = sps.chi2_contingency(obs) if obs.ndim > 1 else (None, None, None, None)
+            if stat is None:
+                stat, p = sps.chisquare(obs)
+                dof = obs.size - 1
+        return {"statistic": float(stat), "p_value": float(p), "df": int(dof)}
 
-        if len(observed) != len(expected):
-            raise ValueError("Les listes observées et attendues doivent avoir la même longueur")
+    def chi2_contingency(self, table: List[List[int]]) -> Dict[str, Any]:
+        """Test du chi² d'indépendance sur un tableau de contingence."""
+        stat, p, dof, expected = sps.chi2_contingency(np.asarray(table))
+        return {"statistic": float(stat), "p_value": float(p), "df": int(dof),
+                "expected": expected.tolist()}
 
-        # Vérifier que les effectifs attendus sont > 0
-        for e in expected:
-            if e <= 0:
-                return {'chi2': float('nan'), 'p_value': float('nan'), 'df': len(observed)-1}
+    def mann_whitney(self, group1: List[Union[int, float]], group2: List[Union[int, float]]) -> Dict[str, float]:
+        a, b = _clean(group1), _clean(group2)
+        if a.size < 1 or b.size < 1:
+            return {"statistic": None, "p_value": None}
+        res = sps.mannwhitneyu(a, b, alternative="two-sided")
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue)}
 
-        chi2 = 0.0
-        for o, e in zip(observed, expected):
-            if e > 0:
-                chi2 += (o - e)**2 / e
-
-        df = len(observed) - 1
-        p_value = 1 - self._chi2_cdf(chi2, df)
-
-        return {
-            'chi2': chi2,
-            'p_value': min(p_value, 1.0),
-            'df': df
-        }
+    def kruskal_wallis(self, *groups: List[Union[int, float]]) -> Dict[str, float]:
+        cleaned = [_clean(g) for g in groups if len(_clean(g)) > 0]
+        if len(cleaned) < 2:
+            return {"statistic": None, "p_value": None}
+        res = sps.kruskal(*cleaned)
+        return {"statistic": float(res.statistic), "p_value": float(res.pvalue)}
 
     def shapiro_wilk(self, data: List[Union[int, float]]) -> Dict[str, float]:
-        """
-        Test de normalité de Shapiro-Wilk
-        Implémentation basée sur l'algorithme AS R94 (Royston 1995)
-        """
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        n = len(valid)
+        a = _clean(data)
+        if a.size < 3:
+            return {"statistic": None, "p_value": None}
+        stat, p = sps.shapiro(a)
+        return {"statistic": float(stat), "p_value": float(p)}
 
-        if n < 3 or n > 5000:
-            return {'w_stat': float('nan'), 'p_value': float('nan')}
+    def ks_test(self, data: List[Union[int, float]], dist: str = "norm") -> Dict[str, float]:
+        a = _clean(data)
+        if a.size < 2:
+            return {"statistic": None, "p_value": None}
+        params = (float(np.mean(a)), float(np.std(a, ddof=1))) if dist in ("norm", "normal") else ()
+        dist_name = "norm" if dist in ("norm", "normal") else dist
+        stat, p = sps.kstest(a, dist_name, args=params)
+        return {"statistic": float(stat), "p_value": float(p)}
 
-        # Trier les données
-        sorted_vals = sorted(valid)
-
-        # Construire les coefficients a_i
-        a = [0.0] * n
-
-        if n == 3:
-            a[0] = 0.707106781
-        else:
-            # Calculer les coefficients de Shapiro-Wilk
-            m = [0.0] * n
-            for i in range(n):
-                # Approximation des espérances des statistiques d'ordre pour la normale
-                u = (i + 1 - 0.375) / (n + 0.25)
-                m[i] = self._norm_inv(u)
-
-            # Calculer les coefficients
-            m2 = sum(x**2 for x in m)
-
-            # Corriger pour n >= 4
-            if n >= 4:
-                # Méthode de Royston
-                w = [0.0] * n
-                for i in range(n):
-                    for j in range(n):
-                        w[i] += abs(m[i] - m[j]) ** (n-1)
-
-                # Normaliser
-                sum_w = sum(w)
-                for i in range(n):
-                    w[i] = w[i] / sum_w
-
-                # Ajuster les coefficients
-                phi = (m2 * n) / (n - 1)
-                for i in range(n):
-                    a[i] = w[i] / math.sqrt(phi)
-            else:
-                # Pour n=3, utiliser les coefficients précalculés
-                a[0] = 0.707106781
-                a[1] = 0.0
-                a[2] = -0.707106781
-
-        # Calculer la statistique W
-        mean_val = self.mean(sorted_vals)
-        numerator = sum(a[i] * sorted_vals[i] for i in range(n))**2
-        denominator = sum((x - mean_val)**2 for x in sorted_vals)
-
-        w_stat = numerator / denominator if denominator != 0 else 0
-
-        # Transformation pour la p-value
-        if n == 3:
-            p_value = 6 * (1 - w_stat)  # Approximation
-        else:
-            # Transformation de Royston
-            y = math.log(1 - w_stat)
-            mu = -0.375 * n**0.2 + 0.45
-            sigma = 0.52 * n**0.1 + 0.21
-            z = (y - mu) / sigma
-            p_value = 2 * (1 - self._norm_cdf(abs(z)))
-
+    def anderson_darling(self, data: List[Union[int, float]]) -> Dict[str, Any]:
+        a = _clean(data)
+        if a.size < 3:
+            return {"statistic": None, "significance_levels": [], "critical_values": []}
+        res = sps.anderson(a, dist="norm")
         return {
-            'w_stat': w_stat,
-            'p_value': min(abs(p_value), 1.0)
+            "statistic": float(res.statistic),
+            "significance_levels": [float(x) for x in res.significance_level],
+            "critical_values": [float(x) for x in res.critical_values],
         }
 
-    def _norm_cdf(self, x: float) -> float:
-        """Fonction de répartition de la loi normale"""
-        return 0.5 * (1 + math.erf(x / math.sqrt(2)))
+    # ==================================================================
+    # AGRÉGATION / PIVOT / TABLEAUX CROISÉS (pandas natif)
+    # ==================================================================
+    def aggregate(self, group_col: str, agg_dict: Dict[str, str]) -> DataTable:
+        return self.df.groupby_agg([group_col], agg_dict)
 
-    def _norm_inv(self, p: float) -> float:
-        """
-        Inverse de la fonction de répartition de la loi normale
-        Approximation de Beasley-Springer-Moro
-        """
-        if p <= 0 or p >= 1:
-            return float('nan')
-
-        if p < 0.5:
-            return -self._norm_inv(1 - p)
-
-        if p > 0.92:
-            # Région des queues
-            a = [-3.969683028665376e+01, 2.209460984245205e+02,
-                 -2.759285104469687e+02, 1.383577518672690e+02,
-                 -3.066479806614716e+01, 2.506628277459239e+00]
-            b = [-5.447609879822406e+01, 1.615858368580409e+02,
-                 -1.556989798598866e+02, 6.680131188771972e+01,
-                 -1.328068155288572e+01]
-
-            q = math.sqrt(-2 * math.log(1 - p))
-            num = ((((a[0] * q + a[1]) * q + a[2]) * q + a[3]) * q + a[4]) * q + a[5]
-            den = (((b[0] * q + b[1]) * q + b[2]) * q + b[3]) * q + b[4]
-            return num / den
-        else:
-            # Région centrale
-            c = [2.515517, 0.802853, 0.010328]
-            d = [1.432788, 0.189269, 0.001308]
-
-            t = math.sqrt(-2 * math.log(1 - p))
-            return t - (c[0] + c[1] * t + c[2] * t**2) / (1 + d[0] * t + d[1] * t**2 + d[2] * t**3)
-
-    def ks_test(self, data: List[Union[int, float]], dist: str = 'normal') -> Dict[str, float]:
-        """Test de Kolmogorov-Smirnov (p-value exacte)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return {'ks_stat': float('nan'), 'p_value': float('nan')}
-
-        n = len(valid)
-        sorted_vals = sorted(valid)
-
-        if dist == 'normal':
-            mean_val = self.mean(valid)
-            std_val = self.std(valid, 0)
-
-            if std_val == 0:
-                return {'ks_stat': 1.0, 'p_value': 0.0}
-
-            # Calculer la statistique KS
-            ks_stat = 0.0
-            for i, x in enumerate(sorted_vals):
-                ecdf = (i + 1) / n
-                cdf = self._norm_cdf((x - mean_val) / std_val)
-                ks_stat = max(ks_stat, abs(ecdf - cdf), abs((i / n) - cdf))
-
-        elif dist == 'uniform':
-            a, b = min(sorted_vals), max(sorted_vals)
-            if a == b:
-                return {'ks_stat': 1.0, 'p_value': 0.0}
-
-            ks_stat = 0.0
-            for i, x in enumerate(sorted_vals):
-                ecdf = (i + 1) / n
-                cdf = (x - a) / (b - a)
-                ks_stat = max(ks_stat, abs(ecdf - cdf), abs((i / n) - cdf))
-        else:
-            return {'ks_stat': float('nan'), 'p_value': float('nan')}
-
-        # p-value approximée par la formule de Kolmogorov
-        z = ks_stat * math.sqrt(n)
-        p_value = 2 * sum((-1)**(k-1) * math.exp(-2 * k**2 * z**2)
-                          for k in range(1, 10))  # Sommer les 10 premiers termes
-        p_value = min(p_value, 1.0)
-
-        return {
-            'ks_stat': ks_stat,
-            'p_value': p_value
-        }
-
-    def anderson_darling(self, data: List[Union[int, float]]) -> Dict[str, float]:
-        """Test d'Anderson-Darling pour la normalité"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) < 2:
-            return {'ad_stat': float('nan'), 'p_value': float('nan')}
-
-        n = len(valid)
-        sorted_vals = sorted(valid)
-        mean_val = self.mean(valid)
-        std_val = self.std(valid, 0)
-
-        if std_val == 0:
-            return {'ad_stat': float('nan'), 'p_value': float('nan')}
-
-        # Calcul de la statistique d'Anderson-Darling
-        ad_stat = 0.0
-        for i, x in enumerate(sorted_vals):
-            z = (x - mean_val) / std_val
-            cdf = self._norm_cdf(z)
-            if cdf <= 0 or cdf >= 1:
-                continue
-            ad_stat += (2*(i+1) - 1) * (math.log(cdf) + math.log(1 - cdf))
-
-        ad_stat = -n - ad_stat / n
-
-        # Correction pour petits échantillons
-        ad_stat_corr = ad_stat * (1 + 0.75/n + 2.25/n**2)
-
-        # Valeurs critiques approximatives
-        if ad_stat_corr < 0.2:
-            p_value = 0.75
-        elif ad_stat_corr < 0.34:
-            p_value = 0.5
-        elif ad_stat_corr < 0.6:
-            p_value = 0.25
-        elif ad_stat_corr < 1.0:
-            p_value = 0.1
-        else:
-            p_value = 0.05
-
-        return {
-            'ad_stat': ad_stat,
-            'p_value': p_value
-        }
-
-    # ========== FONCTIONS D'AGRÉGATION ==========
-
-    def aggregate(self, group_col: str, agg_dict: Dict[str, str]) -> SimpleDataFrame:
-        """Agrège les données selon une colonne de groupe"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
-
-        groups = {}
-        for i in range(len(self.df)):
-            key = self.df[group_col][i]
-            if key not in groups:
-                groups[key] = []
-            groups[key].append(i)
-
-        result = {group_col: []}
-        for agg_col, agg_func in agg_dict.items():
-            result[agg_col] = []
-
-        for key, indices in groups.items():
-            result[group_col].append(key)
-            for agg_col, agg_func in agg_dict.items():
-                values = [self.df[agg_col][i] for i in indices]
-                numeric_values = [to_numeric(x) for x in values if x is not None]
-                numeric_values = [x for x in numeric_values if isinstance(x, (int, float))]
-
-                if agg_func == 'sum':
-                    result[agg_col].append(sum(numeric_values) if numeric_values else 0)
-                elif agg_func == 'mean':
-                    result[agg_col].append(self.mean(numeric_values) if numeric_values else None)
-                elif agg_func == 'median':
-                    result[agg_col].append(self.median(numeric_values) if numeric_values else None)
-                elif agg_func == 'min':
-                    result[agg_col].append(min(numeric_values) if numeric_values else None)
-                elif agg_func == 'max':
-                    result[agg_col].append(max(numeric_values) if numeric_values else None)
-                elif agg_func == 'count':
-                    result[agg_col].append(len(values))
-                elif agg_func == 'std':
-                    result[agg_col].append(self.std(numeric_values, 1) if len(numeric_values) > 1 else None)
-                elif agg_func == 'var':
-                    result[agg_col].append(self.variance(numeric_values, 1) if len(numeric_values) > 1 else None)
-                elif agg_func == 'first':
-                    result[agg_col].append(values[0] if values else None)
-                elif agg_func == 'last':
-                    result[agg_col].append(values[-1] if values else None)
-
-        return SimpleDataFrame(result)
-
-    def pivot_table(self, index: str, columns: str, values: str, aggfunc: str = 'mean') -> SimpleDataFrame:
-        """Crée un tableau croisé dynamique"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
-
-        # Récupérer les valeurs uniques
-        index_vals = set()
-        col_vals = set()
-        for i in range(len(self.df)):
-            if self.df[index][i] is not None:
-                index_vals.add(self.df[index][i])
-            if self.df[columns][i] is not None:
-                col_vals.add(self.df[columns][i])
-
-        index_vals = sorted(index_vals)
-        col_vals = sorted(col_vals)
-
-        # Initialiser le résultat
-        result = {index: []}
-        for col in col_vals:
-            result[str(col)] = []
-
-        # Grouper les données
-        groups = {}
-        for i in range(len(self.df)):
-            idx_val = self.df[index][i]
-            col_val = self.df[columns][i]
-            val = self.df[values][i]
-
-            if idx_val is None or col_val is None or val is None:
-                continue
-
-            key = (idx_val, col_val)
-            if key not in groups:
-                groups[key] = []
-            groups[key].append(val)
-
-        # Calculer les agrégations
-        for idx_val in index_vals:
-            result[index].append(idx_val)
-            for col_val in col_vals:
-                key = (idx_val, col_val)
-                if key in groups:
-                    vals = groups[key]
-                    numeric_vals = [to_numeric(v) for v in vals if v is not None]
-                    numeric_vals = [v for v in numeric_vals if isinstance(v, (int, float))]
-
-                    if aggfunc == 'sum':
-                        result[str(col_val)].append(sum(numeric_vals) if numeric_vals else 0)
-                    elif aggfunc == 'mean':
-                        result[str(col_val)].append(self.mean(numeric_vals) if numeric_vals else None)
-                    elif aggfunc == 'count':
-                        result[str(col_val)].append(len(vals))
-                    elif aggfunc == 'min':
-                        result[str(col_val)].append(min(numeric_vals) if numeric_vals else None)
-                    elif aggfunc == 'max':
-                        result[str(col_val)].append(max(numeric_vals) if numeric_vals else None)
-                    elif aggfunc == 'median':
-                        result[str(col_val)].append(self.median(numeric_vals) if numeric_vals else None)
-                    else:
-                        result[str(col_val)].append(None)
-                else:
-                    result[str(col_val)].append(None)
-
-        return SimpleDataFrame(result)
+    def pivot_table(self, index: str, columns: str, values: str, aggfunc: str = "mean") -> DataTable:
+        pivot = pd.pivot_table(self.df.frame, index=index, columns=columns,
+                                values=values, aggfunc=aggfunc).reset_index()
+        pivot.columns = [str(c) for c in pivot.columns]
+        return DataTable(df=pivot)
 
     def cross_tab(self, col1: str, col2: str) -> Dict[str, Dict[str, int]]:
-        """Tableau de contingence entre deux colonnes"""
-        if not self.df:
-            raise ValueError("Aucun DataFrame défini")
+        return pd.crosstab(self.df.frame[col1], self.df.frame[col2]).to_dict()
 
-        result = {}
-        for i in range(len(self.df)):
-            val1 = self.df[col1][i]
-            val2 = self.df[col2][i]
-            if val1 is None or val2 is None:
-                continue
-
-            if val1 not in result:
-                result[val1] = {}
-            if val2 not in result[val1]:
-                result[val1][val2] = 0
-            result[val1][val2] += 1
-
-        return result
-
-    # ========== FONCTIONS DE RÉSAMPLAGE ==========
-
+    # ==================================================================
+    # RÉ-ÉCHANTILLONNAGE
+    # ==================================================================
     def bootstrap(self, data: List[Union[int, float]], n_samples: int = 1000,
-                  statistic: Callable = None, alpha: float = 0.05) -> Dict[str, float]:
-        """
-        Bootstrap pour estimer l'intervalle de confiance
-        Si statistic est None, utilise la moyenne
-        """
-        if statistic is None:
-            statistic = self.mean
-
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return {'mean': float('nan'), 'ci_low': float('nan'), 'ci_high': float('nan')}
-
-        n = len(valid)
-        bootstrap_stats = []
-
-        for _ in range(n_samples):
-            # Échantillonnage avec remise
-            sample = [valid[random.randint(0, n-1)] for _ in range(n)]
-            bootstrap_stats.append(statistic(sample))
-
-        bootstrap_stats.sort()
-        lower_idx = int(n_samples * alpha / 2)
-        upper_idx = int(n_samples * (1 - alpha / 2))
-
+                   statistic: Callable = np.mean, ci: float = 0.95) -> Dict[str, float]:
+        a = _clean(data)
+        if a.size == 0:
+            return {"estimate": None, "ci_lower": None, "ci_upper": None}
+        rng = np.random.default_rng()
+        boot_stats = np.array([
+            statistic(rng.choice(a, size=a.size, replace=True)) for _ in range(n_samples)
+        ])
+        alpha = (1 - ci) / 2
         return {
-            'mean': self.mean(bootstrap_stats),
-            'ci_low': bootstrap_stats[lower_idx],
-            'ci_high': bootstrap_stats[upper_idx],
-            'std': self.std(bootstrap_stats, 0)
+            "estimate": float(statistic(a)),
+            "ci_lower": float(np.quantile(boot_stats, alpha)),
+            "ci_upper": float(np.quantile(boot_stats, 1 - alpha)),
+            "std_error": float(np.std(boot_stats, ddof=1)),
         }
 
     def jackknife(self, data: List[Union[int, float]], statistic: Callable = None) -> Dict[str, float]:
-        """
-        Jackknife pour estimer le biais et l'erreur-type
-        Si statistic est None, utilise la moyenne
-        """
-        if statistic is None:
-            statistic = self.mean
+        a = _clean(data)
+        statistic = statistic or np.mean
+        n = a.size
+        if n < 2:
+            return {"estimate": None, "std_error": None}
+        leave_one_out = np.array([statistic(np.delete(a, i)) for i in range(n)])
+        estimate = float(statistic(a))
+        bias = (n - 1) * (float(np.mean(leave_one_out)) - estimate)
+        se = float(np.sqrt((n - 1) / n * np.sum((leave_one_out - np.mean(leave_one_out)) ** 2)))
+        return {"estimate": estimate - bias, "std_error": se}
 
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if len(valid) < 2:
-            return {'estimate': float('nan'), 'bias': float('nan'), 'se': float('nan')}
-
-        n = len(valid)
-        jack_stats = []
-
-        for i in range(n):
-            # Échantillon sans l'observation i
-            sample = valid[:i] + valid[i+1:]
-            jack_stats.append(statistic(sample))
-
-        jack_mean = self.mean(jack_stats)
-        original_stat = statistic(valid)
-
-        # Biais et erreur-type jackknife
-        bias = (n - 1) * (jack_mean - original_stat)
-
-        # Variance jackknife
-        jack_var = 0.0
-        for x in jack_stats:
-            jack_var += (x - jack_mean) ** 2
-        jack_var = (n - 1) / n * jack_var
-        se = math.sqrt(jack_var) if jack_var > 0 else 0.0
-
-        return {
-            'estimate': original_stat,
-            'bias': bias,
-            'se': se,
-            'jackknife_mean': jack_mean
-        }
-
-    # ========== FONCTIONS POUR SÉRIES TEMPORELLES ==========
-
+    # ==================================================================
+    # SÉRIES TEMPORELLES — via pandas / statsmodels
+    # ==================================================================
     def lag(self, data: List[Any], k: int = 1) -> List[Any]:
-        """Décale une série de k pas"""
-        if k >= len(data):
-            return [None] * len(data)
-        return [None] * k + data[:-k]
+        return pd.Series(data).shift(k).where(lambda s: s.notna(), None).tolist()
 
-    def diff(self, data: List[Union[int, float]], k: int = 1) -> List[Union[int, float, None]]:
-        """Différence d'ordre k"""
-        if k >= len(data):
-            return [None] * len(data)
-        result = [None] * k
-        for i in range(k, len(data)):
-            if data[i] is not None and data[i-k] is not None:
-                result.append(data[i] - data[i-k])
-            else:
-                result.append(None)
-        return result
+    def diff(self, data: List[Union[int, float]], k: int = 1) -> List[Optional[float]]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce").diff(k)
+        return s.where(pd.notnull(s), None).tolist()
 
-    def pct_change(self, data: List[Union[int, float]], k: int = 1) -> List[Union[int, float, None]]:
-        """Changement en pourcentage"""
-        if k >= len(data):
-            return [None] * len(data)
-        result = [None] * k
-        for i in range(k, len(data)):
-            if data[i] is not None and data[i-k] is not None and data[i-k] != 0:
-                result.append((data[i] - data[i-k]) / abs(data[i-k]) * 100)
-            else:
-                result.append(None)
-        return result
+    def pct_change(self, data: List[Union[int, float]], k: int = 1) -> List[Optional[float]]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce").pct_change(k)
+        return s.where(pd.notnull(s), None).tolist()
 
-    def moving_average(self, data: List[Union[int, float]], window: int = 3) -> List[Union[int, float, None]]:
-        """Moyenne mobile simple"""
-        if window > len(data):
-            return [None] * len(data)
-        result = [None] * (window - 1)
-        for i in range(window - 1, len(data)):
-            window_vals = [data[j] for j in range(i - window + 1, i + 1)
-                          if data[j] is not None and isinstance(data[j], (int, float))]
-            if len(window_vals) == window:  # Toutes les valeurs sont valides
-                result.append(self.mean(window_vals))
-            else:
-                result.append(None)
-        return result
+    def moving_average(self, data: List[Union[int, float]], window: int = 3) -> List[Optional[float]]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce").rolling(window=window).mean()
+        return s.where(pd.notnull(s), None).tolist()
 
-    def ewma(self, data: List[Union[int, float]], alpha: float = 0.3) -> List[Union[int, float, None]]:
-        """Moyenne mobile exponentielle"""
-        result = [None] * len(data)
-        if not data or data[0] is None:
-            return result
+    def ewma(self, data: List[Union[int, float]], alpha: float = 0.3) -> List[Optional[float]]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce").ewm(alpha=alpha).mean()
+        return s.where(pd.notnull(s), None).tolist()
 
-        result[0] = data[0]
-        for i in range(1, len(data)):
-            if data[i] is not None and result[i-1] is not None:
-                result[i] = alpha * data[i] + (1 - alpha) * result[i-1]
-            else:
-                result[i] = None
-        return result
-
-    def autocorrelation(self, data: List[Union[int, float]], lag: int = 1) -> float:
-        """Autocorrélation à un lag donné"""
-        if lag <= 0:
-            return 1.0 if lag == 0 else float('nan')
-
-        valid_pairs = []
-        for i in range(len(data) - lag):
-            if data[i] is not None and data[i+lag] is not None:
-                valid_pairs.append((data[i], data[i+lag]))
-
-        if len(valid_pairs) < 2:
-            return float('nan')
-
-        x_vals, y_vals = zip(*valid_pairs)
-        return self.correlation(list(x_vals), list(y_vals))
+    def autocorrelation(self, data: List[Union[int, float]], lag: int = 1) -> Optional[float]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce").dropna()
+        if len(s) <= lag:
+            return None
+        return float(s.autocorr(lag=lag))
 
     def acf(self, data: List[Union[int, float]], nlags: int = 10) -> List[float]:
-        """Fonction d'autocorrélation"""
-        return [self.autocorrelation(data, lag) for lag in range(nlags + 1)]
+        from statsmodels.tsa.stattools import acf as sm_acf
+        a = _clean(data)
+        nlags = min(nlags, max(a.size - 1, 0))
+        if a.size < 2:
+            return []
+        return [float(x) for x in sm_acf(a, nlags=nlags, fft=True)]
 
     def pacf(self, data: List[Union[int, float]], nlags: int = 10) -> List[float]:
-        """
-        Fonction d'autocorrélation partielle via l'algorithme de Durbin-Levinson
-        """
-        n = len(data)
-        valid_data = [x for x in data if x is not None and isinstance(x, (int, float))]
+        from statsmodels.tsa.stattools import pacf as sm_pacf
+        a = _clean(data)
+        nlags = min(nlags, max(a.size // 2 - 1, 0))
+        if a.size < 4 or nlags < 1:
+            return []
+        return [float(x) for x in sm_pacf(a, nlags=nlags)]
 
-        if len(valid_data) < nlags + 1:
-            return [float('nan')] * (nlags + 1)
+    def adf_test(self, data: List[Union[int, float]]) -> Dict[str, Any]:
+        """Test de racine unitaire (stationnarité) — Augmented Dickey-Fuller."""
+        from statsmodels.tsa.stattools import adfuller
+        a = _clean(data)
+        if a.size < 4:
+            return {"statistic": None, "p_value": None}
+        stat, p, _, _, crit, _ = adfuller(a)
+        return {"statistic": float(stat), "p_value": float(p),
+                "critical_values": {k: float(v) for k, v in crit.items()}}
 
-        # Calculer l'ACF d'abord
-        acf_vals = self.acf(data, nlags)
+    def kpss_test(self, data: List[Union[int, float]]) -> Dict[str, Any]:
+        from statsmodels.tsa.stattools import kpss
+        a = _clean(data)
+        if a.size < 4:
+            return {"statistic": None, "p_value": None}
+        stat, p, _, crit = kpss(a, nlags="auto")
+        return {"statistic": float(stat), "p_value": float(p),
+                "critical_values": {k: float(v) for k, v in crit.items()}}
 
-        # Algorithme de Durbin-Levinson pour la PACF
-        pacf_vals = [1.0]  # PACF à lag 0 = 1
-        phi = [[0.0] * (nlags + 1) for _ in range(nlags + 1)]
+    def seasonal_decompose(self, data: List[Union[int, float]], period: int, model: str = "additive") -> Dict[str, List[float]]:
+        from statsmodels.tsa.seasonal import seasonal_decompose as sm_decompose
+        s = pd.Series(_clean(data))
+        result = sm_decompose(s, period=period, model=model, extrapolate_trend="freq")
+        return {
+            "trend": result.trend.where(pd.notnull(result.trend), None).tolist(),
+            "seasonal": result.seasonal.tolist(),
+            "resid": result.resid.where(pd.notnull(result.resid), None).tolist(),
+        }
 
-        for k in range(1, nlags + 1):
-            # Calculer phi_kk
-            if k == 1:
-                phi[k][k] = acf_vals[1]
-            else:
-                numerator = acf_vals[k]
-                for j in range(1, k):
-                    numerator -= phi[k-1][j] * acf_vals[k-j]
-                denominator = 1.0
-                for j in range(1, k):
-                    denominator -= phi[k-1][j] * acf_vals[j]
-                phi[k][k] = numerator / denominator if denominator != 0 else 0.0
+    # ==================================================================
+    # RÉGRESSION LINÉAIRE — statsmodels
+    # ==================================================================
+    def linear_regression(self, y: List[float], x_cols: Dict[str, List[float]]) -> Dict[str, Any]:
+        """Régression linéaire OLS multiple via statsmodels."""
+        import statsmodels.api as sm
 
-            pacf_vals.append(phi[k][k])
+        data = {"y": y, **x_cols}
+        frame = pd.DataFrame(data).apply(pd.to_numeric, errors="coerce").dropna()
+        if len(frame) < len(x_cols) + 2:
+            return {"error": "Pas assez d'observations pour la régression"}
+        X = sm.add_constant(frame[list(x_cols.keys())])
+        model = sm.OLS(frame["y"], X).fit()
+        return {
+            "coefficients": model.params.to_dict(),
+            "p_values": model.pvalues.to_dict(),
+            "r_squared": float(model.rsquared),
+            "adj_r_squared": float(model.rsquared_adj),
+            "f_statistic": float(model.fvalue),
+            "f_p_value": float(model.f_pvalue),
+            "n_observations": int(model.nobs),
+        }
 
-            # Mettre à jour les autres phi
-            for j in range(1, k):
-                phi[k][j] = phi[k-1][j] - phi[k][k] * phi[k-1][k-j]
+    # ==================================================================
+    # DISTANCES / SIMILARITÉS — scipy.spatial.distance
+    # ==================================================================
+    def euclidean_distance(self, v1: List[float], v2: List[float]) -> float:
+        from scipy.spatial import distance
+        return float(distance.euclidean(v1, v2))
 
-        return pacf_vals
+    def manhattan_distance(self, v1: List[float], v2: List[float]) -> float:
+        from scipy.spatial import distance
+        return float(distance.cityblock(v1, v2))
 
-    # ========== FONCTIONS DE DISTANCE ET SIMILARITÉ ==========
+    def minkowski_distance(self, v1: List[float], v2: List[float], p: float = 3) -> float:
+        from scipy.spatial import distance
+        return float(distance.minkowski(v1, v2, p=p))
 
-    def euclidean_distance(self, v1: List[Union[int, float]], v2: List[Union[int, float]]) -> float:
-        """Distance euclidienne"""
-        if len(v1) != len(v2):
-            raise ValueError("Les vecteurs doivent avoir la même longueur")
+    def cosine_similarity(self, v1: List[float], v2: List[float]) -> float:
+        from scipy.spatial import distance
+        return float(1 - distance.cosine(v1, v2))
 
-        pairs = [(x, y) for x, y in zip(v1, v2)
-                 if x is not None and y is not None
-                 and isinstance(x, (int, float)) and isinstance(y, (int, float))]
+    def jaccard_similarity(self, set1, set2) -> float:
+        s1, s2 = set(set1), set(set2)
+        union = s1 | s2
+        return float(len(s1 & s2) / len(union)) if union else 0.0
 
-        if not pairs:
-            return float('nan')
-
-        sum_sq = 0.0
-        for x, y in pairs:
-            diff = x - y
-            sum_sq += diff * diff
-        return math.sqrt(sum_sq)
-
-    def manhattan_distance(self, v1: List[Union[int, float]], v2: List[Union[int, float]]) -> float:
-        """Distance de Manhattan"""
-        if len(v1) != len(v2):
-            raise ValueError("Les vecteurs doivent avoir la même longueur")
-
-        pairs = [(x, y) for x, y in zip(v1, v2)
-                 if x is not None and y is not None
-                 and isinstance(x, (int, float)) and isinstance(y, (int, float))]
-
-        if not pairs:
-            return float('nan')
-
-        return sum(abs(x - y) for x, y in pairs)
-
-    def minkowski_distance(self, v1: List[Union[int, float]], v2: List[Union[int, float]], p: float = 3) -> float:
-        """Distance de Minkowski d'ordre p"""
-        if len(v1) != len(v2):
-            raise ValueError("Les vecteurs doivent avoir la même longueur")
-        if p < 1:
-            raise ValueError("p doit être >= 1")
-
-        pairs = [(x, y) for x, y in zip(v1, v2)
-                 if x is not None and y is not None
-                 and isinstance(x, (int, float)) and isinstance(y, (int, float))]
-
-        if not pairs:
-            return float('nan')
-
-        if p == float('inf'):
-            return max(abs(x - y) for x, y in pairs)
-
-        sum_p = 0.0
-        for x, y in pairs:
-            sum_p += abs(x - y) ** p
-        return sum_p ** (1.0 / p)
-
-    def cosine_similarity(self, v1: List[Union[int, float]], v2: List[Union[int, float]]) -> float:
-        """Similarité cosinus"""
-        if len(v1) != len(v2):
-            raise ValueError("Les vecteurs doivent avoir la même longueur")
-
-        pairs = [(x, y) for x, y in zip(v1, v2)
-                 if x is not None and y is not None
-                 and isinstance(x, (int, float)) and isinstance(y, (int, float))]
-
-        if not pairs:
-            return float('nan')
-
-        x_vals, y_vals = zip(*pairs)
-
-        dot_product = 0.0
-        norm_x = 0.0
-        norm_y = 0.0
-
-        for x, y in pairs:
-            dot_product += x * y
-            norm_x += x * x
-            norm_y += y * y
-
-        norm_x = math.sqrt(norm_x)
-        norm_y = math.sqrt(norm_y)
-
-        if norm_x * norm_y == 0:
-            return 0.0
-        return dot_product / (norm_x * norm_y)
-
-    def jaccard_similarity(self, set1: Set[Any], set2: Set[Any]) -> float:
-        """Similarité de Jaccard pour des ensembles"""
-        if not set1 and not set2:
-            return 1.0
-        intersection = set1 & set2
-        union = set1 | set2
-        return len(intersection) / len(union) if union else 0
-
-    # ========== FONCTIONS DE CLASSEMENT ==========
-
-    def rank(self, data: List[Union[int, float]], method: str = 'average') -> List[float]:
-        """
-        Calcule les rangs des valeurs
-        Methods: 'average', 'min', 'max', 'dense', 'ordinal'
-        """
-        if method == 'average':
-            return self._rank(data)
-        elif method == 'min':
-            indexed = list(enumerate(data))
-            indexed.sort(key=lambda x: (x[1] if x[1] is not None else float('inf'), x[0]))
-            ranks = [0] * len(data)
-            i = 0
-            while i < len(indexed):
-                j = i
-                while j < len(indexed) and indexed[j][1] == indexed[i][1]:
-                    j += 1
-                for k in range(i, j):
-                    ranks[indexed[k][0]] = i + 1
-                i = j
-            return ranks
-        elif method == 'max':
-            indexed = list(enumerate(data))
-            indexed.sort(key=lambda x: (x[1] if x[1] is not None else float('inf'), x[0]))
-            ranks = [0] * len(data)
-            i = 0
-            while i < len(indexed):
-                j = i
-                while j < len(indexed) and indexed[j][1] == indexed[i][1]:
-                    j += 1
-                for k in range(i, j):
-                    ranks[indexed[k][0]] = j
-                i = j
-            return ranks
-        elif method == 'dense':
-            # Rangs sans trous
-            unique_vals = sorted(set(x for x in data if x is not None))
-            val_to_rank = {val: i+1 for i, val in enumerate(unique_vals)}
-            return [val_to_rank[x] if x in val_to_rank else None for x in data]
-        else:  # ordinal
-            return [i+1 for i in range(len(data))]
+    # ==================================================================
+    # CLASSEMENT / SCORES — numpy / scipy.stats
+    # ==================================================================
+    def rank(self, data: List[Union[int, float]], method: str = "average") -> List[float]:
+        a = np.asarray(_clean(data))
+        return [float(r) for r in sps.rankdata(a, method=method)] if a.size else []
 
     def percentile_rank(self, data: List[Union[int, float]], value: Union[int, float]) -> float:
-        """Rang percentile d'une valeur"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return float('nan')
+        a = _clean(data)
+        return float(sps.percentileofscore(a, value)) if a.size else 0.0
 
-        count_less = sum(1 for x in valid if x < value)
-        count_equal = sum(1 for x in valid if x == value)
+    def zscore(self, data: List[Union[int, float]]) -> List[Optional[float]]:
+        s = pd.to_numeric(pd.Series(data), errors="coerce")
+        z = (s - s.mean()) / s.std(ddof=1)
+        return z.where(pd.notnull(z), None).tolist()
 
-        # Formule de percentile standard
-        return (count_less + 0.5 * count_equal) / len(valid) * 100
+    def min_max_scale(self, columns: Optional[List[str]] = None,
+                       feature_range: Tuple[float, float] = (0, 1)) -> "DataTable":
 
-    def zscore(self, data: List[Union[int, float]]) -> List[Union[int, float, None]]:
-        """Calcule les z-scores"""
-        mean_val = self.mean(data)
-        std_val = self.std(data, 0)
+        new_df = self._df.copy()
+        cols = columns if columns else list(new_df.select_dtypes(include=[np.number]).columns)
+        cols = [c for c in cols if c in new_df.columns]
+        if not cols:
+            return DataTable(df=new_df)
+        sub = new_df[cols].apply(pd.to_numeric, errors="coerce")
+        mask = sub.notna().all(axis=1)
+        if mask.any():
+             min_val = sub.loc[mask].min()
+             max_val = sub.loc[mask].max()
 
-        if math.isnan(mean_val) or std_val == 0:
-            return [0.0 if x is not None else None for x in data]
+             range_val = max_val - min_val
+             range_val = range_val.replace(0, 1)
 
-        result = []
-        for x in data:
-            if x is None:
-                result.append(None)
-            elif isinstance(x, (int, float)):
-                result.append((x - mean_val) / std_val)
+             scaled = (sub.loc[mask] - min_val) / range_val
+             scaled = scaled * (feature_range[1] - feature_range[0]) + feature_range[0]
+
+             new_df.loc[mask, cols] = scaled
+        return DataTable(df=new_df)
+
+
+    def robust_scale(self, data: List[Union[int, float]]) -> List[Optional[float]]:
+        from scipy.stats import iqr
+        s = pd.to_numeric(pd.Series(data), errors="coerce")
+        mask = s.notna()
+        scaled = pd.Series([None] * len(s), dtype="object")
+
+        if mask.any():
+            values = s[mask]
+            median = values.median()
+            iqr_val = iqr(values)
+
+            if iqr_val == 0:
+                scaled.loc[mask] = values - median
             else:
-                result.append(None)
-        return result
-
-    def min_max_scale(self, data: List[Union[int, float]], feature_range: Tuple[float, float] = (0, 1)) -> List[Union[int, float, None]]:
-        """Normalisation min-max"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return [None] * len(data)
-
-        min_val, max_val = min(valid), max(valid)
-        if min_val == max_val:
-            return [feature_range[0] if x is not None else None for x in data]
-
-        a, b = feature_range
-        result = []
-        for x in data:
-            if x is None:
-                result.append(None)
-            elif isinstance(x, (int, float)):
-                scaled = a + (x - min_val) * (b - a) / (max_val - min_val)
-                result.append(scaled)
-            else:
-                result.append(None)
-        return result
-
-    def robust_scale(self, data: List[Union[int, float]]) -> List[Union[int, float, None]]:
-        """Mise à l'échelle robuste (basée sur la médiane et l'IQR)"""
-        valid = [x for x in data if x is not None and isinstance(x, (int, float))]
-        if not valid:
-            return [None] * len(data)
-
-        median_val = self.median(valid)
-        iqr_val = self.iqr(valid)
-
-        if iqr_val == 0 or math.isnan(iqr_val):
-            return [0.0 if x is not None else None for x in data]
-
-        result = []
-        for x in data:
-            if x is None:
-                result.append(None)
-            elif isinstance(x, (int, float)):
-                result.append((x - median_val) / iqr_val)
-            else:
-                result.append(None)
-        return result
+                scaled.loc[mask] = (values - median) / iqr_val
+        return scaled.tolist()
