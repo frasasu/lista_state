@@ -4,38 +4,10 @@ export const DataCore = {
     payload: {
         tables: {},
         analysis: {},
+
         settings: {
-            general: {
-                defaultSession: 'new',
-                autoSave: true,
-                autoSaveInterval: 30,
-                defaultFolder: '',
-                defaultExportFormat: 'csv'
-            },
-            editor: {
-                theme: 'dracula',
-                fontSize: 14,
-                fontFamily: "'Fira Code', monospace",
-                ligatures: true,
-                indentation: 'spaces-4',
-                autocomplete: true,
-                highlightLine: true,
-                lineNumbers: true
-            },
-            appearance: {
-                theme: 'dark',
-                accentColor: '#4299e1',
-                density: 'comfortable',
-                showPreviews: true,
-                sidebarCollapsed: false
-            },
-            performance: {
-                memoryLimit: 2048,
-                dataCache: true,
-                cacheSize: 512,
-                parallelThreads: 4,
-                asyncLoading: true
-            }
+            theme: 'dark',
+            editorFontSize: 14
         }
     },
 
@@ -65,17 +37,6 @@ export const DataCore = {
         this.payload.settings = {
             ...this.payload.settings,
             ...newSettings
-        };
-        this.save();
-    },
-
-    updateSettingsCategory(category, values) {
-        if (!this.payload.settings[category]) {
-            this.payload.settings[category] = {};
-        }
-        this.payload.settings[category] = {
-            ...this.payload.settings[category],
-            ...values
         };
         this.save();
     }

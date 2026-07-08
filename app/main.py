@@ -128,11 +128,8 @@ class ManagerApp:
                     "demo": "# Analyse demo\nLoad demo as data\nAnalyze data [total = COUNT(*)] with show=true"
                 },
                 "settings": {
-                    "general": {
-                        "defaultSession": "new",
-                        "autoSave": True,
-                        "autoSaveInterval": 30
-                    }
+                    "theme": "dark",
+                    "editorFontSize": 14
                 }
             }
 
