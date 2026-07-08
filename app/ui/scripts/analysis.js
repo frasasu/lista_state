@@ -327,6 +327,7 @@ function createDescribeSection(results) {
     title.className = "section-title";
     title.innerHTML = `📊 Statistiques descriptives - ${results.target || 'Table'}`;
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     const results_data = results.results || {};
     const format = results.format || 'table';
@@ -487,6 +488,7 @@ function createDescribeAllSection(results) {
     title.className = "section-title";
     title.innerHTML = `📈 Statistiques complètes - ${results.target || 'Table'}`;
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     // Informations générales
     if (results.shape) {
@@ -694,6 +696,7 @@ function createSummarySection(results) {
     title.className = "section-title";
     title.innerHTML = `📋 Résumé - ${results.target || 'Table'}`;
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     const results_data = results.results || {};
 
@@ -789,27 +792,20 @@ function createSVGSection(svgs) {
         // Créer les boutons avec des gestionnaires d'événements directs
         const downloadBtn = document.createElement("button");
         downloadBtn.innerHTML = '💾 Télécharger';
+        downloadBtn.title = "Télécharger l'image au format PNG dans le dossier Téléchargements";
         downloadBtn.onclick = function(e) {
             e.stopPropagation();
-            downloadSVG(container);
+            downloadSVGAsPNG(container, svg.content?.title);
         };
-        
-        const copyBtn = document.createElement("button");
-        copyBtn.innerHTML = '📋 Copier';
-        copyBtn.onclick = function(e) {
-            e.stopPropagation();
-            copySVG(container);
-        };
-        
+
         const fullscreenBtn = document.createElement("button");
         fullscreenBtn.innerHTML = '🖥️ Plein écran';
         fullscreenBtn.onclick = function(e) {
             e.stopPropagation();
             toggleFullscreen(container);
         };
-        
+
         controls.appendChild(downloadBtn);
-        controls.appendChild(copyBtn);
         controls.appendChild(fullscreenBtn);
         
         card.appendChild(controls);
@@ -830,6 +826,7 @@ function createStatsSection(stats) {
     title.className = "section-title";
     title.innerHTML = '📊 Statistiques avancées';
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     stats.forEach(stat => {
         const card = document.createElement("div");
@@ -895,6 +892,7 @@ function createErrorSection(errors) {
     title.className = "section-title";
     title.innerHTML = '❌ Erreurs';
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     errors.forEach(error => {
         const errorCard = document.createElement("div");
@@ -923,6 +921,7 @@ function createTableSection(tables) {
     title.className = "section-title";
     title.innerHTML = '📊 Tables';
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     tables.forEach(table => {
         const tableCard = document.createElement("div");
@@ -934,6 +933,7 @@ function createTableSection(tables) {
             <span class="table-name">${table.content.name || 'Table'}</span>
             <span class="table-dimensions">${table.content.shape?.[0] || 0} lignes × ${table.content.shape?.[1] || 0} colonnes</span>
         `;
+        tableHeader.appendChild(createCopyButton(() => tableCard, '📋 Copier le tableau'));
         tableCard.appendChild(tableHeader);
 
         if (table.content.preview && table.content.preview.length > 0) {
@@ -1016,6 +1016,7 @@ function createAnalysisSection(analyses) {
     title.className = "section-title";
     title.innerHTML = '📈 Analyses';
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     analyses.forEach(analysis => {
         const analysisCard = document.createElement("div");
@@ -1079,6 +1080,7 @@ function createInfoSection(messages) {
     title.className = "section-title";
     title.innerHTML = 'ℹ️ Informations';
     section.appendChild(title);
+    addSectionCopyButton(title, () => section);
 
     messages.forEach(msg => {
         const infoCard = document.createElement("div");
@@ -1099,86 +1101,220 @@ function createInfoSection(messages) {
     return section;
 }
 
-// ========== FONCTIONS UTILITAIRES POUR LES SVG ==========
+// ========== FONCTIONS UTILITAIRES DE COPIE (POUR LES RAPPORTS) ==========
+// Ces fonctions permettent de copier un tableau ou un bloc de résultats
+// dans le presse-papiers, en conservant la mise en forme (couleurs, gras...)
+// afin de pouvoir le coller directement dans un éditeur comme Word.
 
-// Fonction de téléchargement améliorée
-function downloadSVG(container) {
-    const svg = container.querySelector('svg');
-    if (!svg) {
-        console.error("SVG non trouvé");
-        return;
-    }
+/**
+ * Recopie récursivement les styles calculés (couleur, fond, bordures, etc.)
+ * en tant que style inline sur le clone, pour que la mise en forme survive
+ * au collage dans un éditeur externe qui n'a pas accès à notre feuille CSS.
+ */
+function inlineComputedStyles(source, clone) {
+    const PROPS_TO_INLINE = [
+        'color', 'background-color', 'background', 'font-weight', 'font-style',
+        'font-size', 'font-family', 'text-align', 'text-decoration-line',
+        'border-top', 'border-right', 'border-bottom', 'border-left',
+        'border-collapse', 'border-spacing', 'border-radius',
+        'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+        'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+        'vertical-align', 'white-space', 'width'
+    ];
 
-    try {
-        // Cloner le SVG pour éviter les modifications
-        const svgClone = svg.cloneNode(true);
-        
-        // S'assurer que les dimensions sont présentes
-        if (!svgClone.hasAttribute('width')) {
-            svgClone.setAttribute('width', '800');
-        }
-        if (!svgClone.hasAttribute('height')) {
-            svgClone.setAttribute('height', '600');
-        }
-        
-        const serializer = new XMLSerializer();
-        const source = serializer.serializeToString(svgClone);
-        
-        // Ajouter la déclaration XML
-        const fullSource = '<?xml version="1.0" encoding="UTF-8"?>\n' + source;
-        
-        const blob = new Blob([fullSource], { type: 'image/svg+xml' });
-        const url = URL.createObjectURL(blob);
+    const computed = window.getComputedStyle(source);
+    let styleStr = clone.getAttribute('style') || '';
+    PROPS_TO_INLINE.forEach(prop => {
+        const value = computed.getPropertyValue(prop);
+        if (value) styleStr += `${prop}:${value};`;
+    });
+    clone.setAttribute('style', styleStr);
 
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'chart.svg';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // Nettoyer
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 100);
-        
-    } catch (error) {
-        console.error("Erreur lors du téléchargement:", error);
-        alert("Erreur lors du téléchargement du SVG");
+    const sourceChildren = source.children;
+    const cloneChildren = clone.children;
+    for (let i = 0; i < sourceChildren.length; i++) {
+        if (cloneChildren[i]) inlineComputedStyles(sourceChildren[i], cloneChildren[i]);
     }
 }
 
-// Fonction de copie améliorée
-function copySVG(container) {
+/**
+ * Copie un élément DOM (tableau, carte de résultats, section entière, ...)
+ * dans le presse-papiers au format riche (HTML, avec couleurs/mise en forme)
+ * et texte brut en secours, pour un collage direct dans Word / un éditeur.
+ */
+async function copyElementToClipboard(element, buttonEl) {
+    if (!element) return;
+
+    try {
+        const clone = element.cloneNode(true);
+
+        // Ne pas copier les boutons de contrôle (copier/télécharger/plein écran...)
+        clone.querySelectorAll('.no-copy').forEach(el => el.remove());
+
+        inlineComputedStyles(element, clone);
+
+        const htmlContent = `<div style="font-family: Arial, Helvetica, sans-serif; font-size: 13px;">${clone.outerHTML}</div>`;
+        const textContent = element.innerText;
+
+        if (navigator.clipboard && window.ClipboardItem) {
+            const item = new ClipboardItem({
+                'text/html': new Blob([htmlContent], { type: 'text/html' }),
+                'text/plain': new Blob([textContent], { type: 'text/plain' })
+            });
+            await navigator.clipboard.write([item]);
+        } else if (navigator.clipboard) {
+            await navigator.clipboard.writeText(textContent);
+        } else {
+            throw new Error('Presse-papiers non disponible');
+        }
+
+        if (buttonEl) {
+            const original = buttonEl.innerHTML;
+            buttonEl.innerHTML = '✅ Copié !';
+            buttonEl.disabled = true;
+            setTimeout(() => {
+                buttonEl.innerHTML = original;
+                buttonEl.disabled = false;
+            }, 2000);
+        }
+    } catch (error) {
+        console.error("Erreur lors de la copie:", error);
+        alert("Erreur lors de la copie dans le presse-papiers");
+    }
+}
+
+/**
+ * Crée un bouton de copie réutilisable. `getTarget` peut être un élément DOM
+ * ou une fonction retournant l'élément à copier (utile quand l'élément est
+ * créé après le bouton).
+ */
+function createCopyButton(getTarget, label = '📋 Copier') {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn no-copy';
+    btn.innerHTML = label;
+    btn.title = "Copier pour coller dans un rapport (Word, etc.)";
+    btn.onclick = function(e) {
+        e.stopPropagation();
+        const target = typeof getTarget === 'function' ? getTarget() : getTarget;
+        copyElementToClipboard(target, btn);
+    };
+    return btn;
+}
+
+/**
+ * Ajoute un bouton de copie dans l'en-tête (section-title) d'une section de
+ * résultats, permettant de copier tout le contenu de la section (hors titre)
+ * en une seule fois.
+ */
+function addSectionCopyButton(titleEl, contentGetter) {
+    titleEl.classList.add('section-title-with-copy');
+    titleEl.appendChild(createCopyButton(contentGetter, '📋 Copier'));
+}
+
+// ========== FONCTIONS UTILITAIRES POUR LES SVG ==========
+
+// Fonction de téléchargement : convertit le SVG en image PNG et la télécharge
+// directement dans le dossier "Téléchargements" de l'utilisateur (comportement
+// natif du navigateur/webview déclenché par l'attribut download d'un <a>).
+function downloadSVGAsPNG(container, titleHint) {
     const svg = container.querySelector('svg');
     if (!svg) {
         console.error("SVG non trouvé");
+        alert("Impossible de trouver le graphique à télécharger");
         return;
     }
 
     try {
-        const serializer = new XMLSerializer();
-        const source = serializer.serializeToString(svg);
+        const svgClone = svg.cloneNode(true);
 
-        navigator.clipboard.writeText(source).then(() => {
-            // Feedback visuel
-            const btn = event?.target;
-            if (btn) {
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '✅ Copié!';
-                setTimeout(() => {
-                    btn.innerHTML = originalText;
-                }, 2000);
-            } else {
-                alert('SVG copié dans le presse-papiers !');
+        if (!svgClone.getAttribute('xmlns')) {
+            svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        }
+
+        // Déterminer une taille correcte pour le rendu (attribut, viewBox ou taille réelle affichée)
+        const bbox = svg.getBoundingClientRect();
+        let width = parseFloat(svgClone.getAttribute('width')) || bbox.width;
+        let height = parseFloat(svgClone.getAttribute('height')) || bbox.height;
+
+        if (!width || !height) {
+            const viewBox = svgClone.getAttribute('viewBox');
+            if (viewBox) {
+                const parts = viewBox.split(/\s+/).map(Number);
+                width = width || parts[2] || 800;
+                height = height || parts[3] || 600;
             }
-        }).catch(err => {
-            console.error("Erreur de copie:", err);
-            alert("Erreur lors de la copie");
-        });
+        }
+
+        width = width || 800;
+        height = height || 600;
+
+        svgClone.setAttribute('width', width);
+        svgClone.setAttribute('height', height);
+
+        const serializer = new XMLSerializer();
+        const source = '<?xml version="1.0" encoding="UTF-8"?>\n' + serializer.serializeToString(svgClone);
+
+        const svgBlob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        img.onload = function() {
+            try {
+                // Facteur d'échelle pour obtenir un PNG net (haute résolution)
+                const scale = 2;
+                const canvas = document.createElement('canvas');
+                canvas.width = width * scale;
+                canvas.height = height * scale;
+
+                const ctx = canvas.getContext('2d');
+                // Fond blanc pour éviter un rendu transparent/noir une fois collé ailleurs
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0, width, height);
+
+                URL.revokeObjectURL(svgUrl);
+
+                canvas.toBlob(function(pngBlob) {
+                    if (!pngBlob) {
+                        alert("Erreur lors de la génération du fichier PNG");
+                        return;
+                    }
+
+                    const pngUrl = URL.createObjectURL(pngBlob);
+                    const safeName = (titleHint || 'graphique')
+                        .toString()
+                        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                        .replace(/[^a-zA-Z0-9-_]+/g, '_')
+                        .replace(/^_+|_+$/g, '') || 'graphique';
+
+                    const a = document.createElement('a');
+                    a.href = pngUrl;
+                    a.download = `${safeName}.png`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+
+                    setTimeout(() => URL.revokeObjectURL(pngUrl), 200);
+                }, 'image/png');
+            } catch (err) {
+                console.error("Erreur lors de la conversion en PNG:", err);
+                alert("Erreur lors du téléchargement de l'image");
+            }
+        };
+
+        img.onerror = function(err) {
+            console.error("Erreur de chargement du SVG pour conversion:", err);
+            URL.revokeObjectURL(svgUrl);
+            alert("Erreur lors du téléchargement de l'image");
+        };
+
+        img.src = svgUrl;
+
     } catch (error) {
-        console.error("Erreur:", error);
-        alert("Erreur lors de la copie");
+        console.error("Erreur lors du téléchargement:", error);
+        alert("Erreur lors du téléchargement de l'image");
     }
 }
 
@@ -1256,13 +1392,8 @@ function toggleFullscreen(container) {
 window.downloadSVG = function(btn) {
     const card = btn.closest('.svg-card');
     const container = card?.querySelector('.svg-container');
-    if (container) downloadSVG(container);
-};
-
-window.copySVG = function(btn) {
-    const card = btn.closest('.svg-card');
-    const container = card?.querySelector('.svg-container');
-    if (container) copySVG(container);
+    const titleHint = card?.querySelector('.svg-title')?.textContent;
+    if (container) downloadSVGAsPNG(container, titleHint);
 };
 
 window.toggleFullscreen = function(btn) {

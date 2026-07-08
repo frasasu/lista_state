@@ -43,21 +43,36 @@ class SettingsManager {
         this.applySettings();
 
         try {
-            await this.core.save();
-            this.showNotification('Paramètres sauvegardés', 'success');
+            const result = await this.core.save();
+            if (result && result.error) {
+                // Le backend a renvoyé une erreur (ex: aucune session ouverte) :
+                // on ne doit pas afficher un faux message de succès.
+                this.showNotification(`Erreur lors de la sauvegarde : ${result.error}`, 'error');
+            } else {
+                this.showNotification('Paramètres sauvegardés', 'success');
+            }
         } catch (error) {
             this.showNotification('Erreur lors de la sauvegarde', 'error');
         }
     }
 
-    resetSettings() {
+    async resetSettings() {
         if (!confirm('Réinitialiser les paramètres ?')) return;
 
         this.core.payload.settings = { ...DEFAULT_SETTINGS };
         this.loadSettingsToUI();
         this.applySettings();
-        this.core.save();
-        this.showNotification('Paramètres réinitialisés', 'info');
+
+        try {
+            const result = await this.core.save();
+            if (result && result.error) {
+                this.showNotification(`Erreur lors de la réinitialisation : ${result.error}`, 'error');
+            } else {
+                this.showNotification('Paramètres réinitialisés', 'info');
+            }
+        } catch (error) {
+            this.showNotification('Erreur lors de la réinitialisation', 'error');
+        }
     }
 
     applySettings() {

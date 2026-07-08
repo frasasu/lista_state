@@ -183,7 +183,9 @@ class Evaluator:
             self.current_tables[alias] = df
             self.transformed_tables[alias] = df.copy()
 
-            preview = df.head(10).to_dict(orient='records')
+            # Afficher toutes les lignes du tableau (nécessaire pour permettre
+            # une copie complète du tableau vers un rapport/éditeur externe).
+            preview = df.to_dict(orient='records')
             preview = self._convert_dict_to_json_serializable(preview)
 
             self.add_output("table", {
@@ -281,7 +283,9 @@ class Evaluator:
         elif var_df:
             self.variables[alias] = df.copy()
 
-        preview = df.head(10).to_dict(orient='records')
+        # Afficher toutes les lignes du tableau (nécessaire pour permettre
+        # une copie complète du tableau vers un rapport/éditeur externe).
+        preview = df.to_dict(orient='records')
         preview = self._convert_dict_to_json_serializable(preview)
 
         self.add_output("table", {
@@ -606,7 +610,9 @@ class Evaluator:
         self.transformed_tables[alias] = result_df.copy()
         self.current_tables[alias] = result_df.copy()
 
-        preview = result_df.head(10).to_dict(orient='records')
+        # Afficher toutes les lignes du tableau (nécessaire pour permettre
+        # une copie complète du tableau vers un rapport/éditeur externe).
+        preview = result_df.to_dict(orient='records')
         preview = self._convert_dict_to_json_serializable(preview)
 
         self.add_output("table", {

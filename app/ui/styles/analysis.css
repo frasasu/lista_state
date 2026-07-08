@@ -487,6 +487,56 @@
     gap: 8px;
 }
 
+/* Titre de section avec bouton de copie aligné à droite (pour le reportage) */
+.section-title-with-copy {
+    justify-content: space-between;
+}
+
+/* Bouton générique de copie (tableaux, cartes, sections entières...) */
+.copy-btn {
+    padding: 6px 12px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    color: #4a5568;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.copy-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(102, 126, 234, 0.25);
+}
+
+.copy-btn:disabled {
+    opacity: 0.85;
+    cursor: default;
+    background: #48bb78;
+    color: white;
+    border-color: #48bb78;
+    transform: none;
+}
+
+/* Le bouton "Copier le tableau" dans l'en-tête sombre d'une table */
+.table-header .copy-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.table-header .copy-btn:hover {
+    background: white;
+    color: #2d3748;
+    border-color: white;
+}
+
 .section-title::before {
     font-size: 20px;
 }
@@ -866,6 +916,11 @@
     background: linear-gradient(135deg, #1a202c, #2d3748);
     color: white;
     padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
 .table-name {

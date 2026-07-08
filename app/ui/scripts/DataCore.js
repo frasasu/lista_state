@@ -26,7 +26,10 @@ export const DataCore = {
     },
 
     async save() {
-        await pywebview.api.save_as(this.payload);
+        // On retourne le résultat renvoyé par le backend (save_as) afin que les
+        // appelants puissent vérifier si la sauvegarde a réellement réussi
+        // (le backend renvoie {success:true} ou {error: "..."}).
+        return await pywebview.api.save_as(this.payload);
     },
 
     getSettings() {
