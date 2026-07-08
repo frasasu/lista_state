@@ -28,6 +28,7 @@ class AnalysisManager{
         this.saveCurrentAnalysis();
         this.currentAnalysisName = me.innerText;
         this.displayAnalysis(me.innerText);
+        this.highlightCurrentAnalysis();
     }
 
     displayAnalysis(name){
@@ -44,9 +45,17 @@ class AnalysisManager{
         for (let name of names_analysis){
             let div = document.createElement("div");
             div.className= "div";
-            div.innerHTML =`<div onclick="analysisManager.shwowAnalysis(this)" ondblclick="analysisManager.deleteAnalysis(this.innerText)">${name}</div>`
+            div.innerHTML =`<div class="${name === this.currentAnalysisName ? 'active' : ''}" onclick="analysisManager.shwowAnalysis(this)" ondblclick="analysisManager.deleteAnalysis(this.innerText)">${name}</div>`
             this.list_analysis.appendChild(div);
         }
+    }
+
+    /** Met en surbrillance, dans la liste, l'élément correspondant à la session (analyse) courante. */
+    highlightCurrentAnalysis() {
+        if (!this.list_analysis) return;
+        this.list_analysis.querySelectorAll(".div div").forEach(item => {
+            item.classList.toggle("active", item.textContent === this.currentAnalysisName);
+        });
     }
 
     updateLineNumbers() {

@@ -4,7 +4,7 @@ export const DataCore = {
     payload: {
         tables: {},
         analysis: {},
-
+        // 2 réglages simples et faciles à maintenir.
         settings: {
             theme: 'dark',
             editorFontSize: 14

@@ -275,6 +275,21 @@
     box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
 }
 
+/* Session (analyse) courante : couleur distincte pour la différencier des autres */
+.analysis .left .bottom .under .liste-analysis .div div.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25), 0 5px 15px rgba(102, 126, 234, 0.3);
+}
+
+.analysis .left .bottom .under .liste-analysis .div div.active::before {
+    content: '●';
+    margin-right: 6px;
+    font-size: 10px;
+    vertical-align: middle;
+}
+
 /* ===== MODALS - MODERNISÉS ===== */
 .modal-new-analysis,
 .modal-delete-analysis {

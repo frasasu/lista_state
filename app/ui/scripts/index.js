@@ -138,10 +138,20 @@ class DataTableManager {
         this.list_table.innerHTML = '';
         for (let name of Object.keys(this.core.payload.tables)) {
             let list = document.createElement("div");
-            list.className = "list-table-item";
+            list.className = "list-table-item" + (name === this.currentNameTable ? " active" : "");
             list.innerHTML = `<div ondblclick="dataManager.OpenModalTableUtils(this)" onclick="dataManager.playTable(this)">${name}</div>`;
             this.list_table.appendChild(list);
         }
+    }
+
+    /** Met en surbrillance, dans la liste, l'élément correspondant à la table courante. */
+    highlightCurrentTable() {
+        if (!this.list_table) return;
+        this.list_table.querySelectorAll(".list-table-item").forEach(item => {
+            const nameEl = item.querySelector("div");
+            const name = nameEl ? nameEl.textContent : item.textContent;
+            item.classList.toggle("active", name === this.currentNameTable);
+        });
     }
 
     ChooseOptionCreateSession() {
@@ -297,6 +307,7 @@ class DataTableManager {
         this.SaveCurrentTable();
         this.currentNameTable = me.innerText;
         this.displayTable(me.innerText);
+        this.highlightCurrentTable();
     }
 
     OpenModalTableUtils(me) {
@@ -310,6 +321,7 @@ class DataTableManager {
         title_modal.innerHTML = `<h2>Table: ${name_}</h2>`;
 
         this.currentNameTable = name_ !== "Table inconnue" ? name_ : this.currentNameTable;
+        this.highlightCurrentTable();
 
         if (name_ === "Table inconnue") {
             modal.style.display = "none";
@@ -786,6 +798,7 @@ class DataTableManager {
                 this.currentNameTable = NaN;
                 this.grid_table.innerHTML = '<div class="empty-state">Aucune table disponible</div>';
             }
+            this.highlightCurrentTable();
 
             tableNameInput.value = "";
             document.getElementById("modal-delete-table").style.display = "none";

@@ -283,6 +283,21 @@ body {
     transform: translateY(0);
 }
 
+/* Table courante : couleur distincte pour la différencier des autres tables */
+.data-table .list-table .list-table-item.active {
+    background: linear-gradient(135deg, #4299e1, #667eea);
+    color: white;
+    border-color: transparent;
+    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.25), 0 5px 15px rgba(66, 153, 225, 0.3);
+}
+
+.data-table .list-table .list-table-item.active::before {
+    content: '●';
+    margin-right: 6px;
+    font-size: 10px;
+    vertical-align: middle;
+}
+
 /* Utils Table All - Modernisé */
 #editor .utils-table-all {
     margin: 20px;
