@@ -51,7 +51,7 @@
                     <div class="btn-create-session-option" onclick="dataManager.ChooseOptionCreateSession()">Active</div>
                     <div class="rslt-create-session-option" id="rslt-create-session-option"></div>
                 </div>
-                <div class="div_for_new_session" id="div_for_new_session">Choisir l'option</div>
+                <div class="div_for_new_session" id="div_for_new_session">Choose an option</div>
             </div>
         </div>
         <div id="session" class="tab">
@@ -75,7 +75,7 @@
                             <div class="delete">Delete</div>
                         </div>
                         <div class="under">
-                            <div class="title" >Liste des analyses</div>
+                            <div class="title" >List of analyses</div>
                             <div class="liste-analysis"></div>
                         </div>
                     </div>
@@ -85,22 +85,22 @@
         </div>
     <div id="settings" class="tab">
     <div class="session-title">
-        <div class="session-tile-data">Paramètres</div>
+        <div class="session-tile-data">Settings</div>
     </div>
     <div class="settings-container">
         <div class="settings-content">
-            <h2>Paramètres</h2>
+            <h2>Settings</h2>
             <div class="settings-group">
                 <div class="settings-item">
-                    <label for="app-theme">Thème de l'application</label>
+                    <label for="app-theme">App theme</label>
                     <select id="app-theme">
-                        <option value="light">Clair</option>
-                        <option value="dark">Sombre</option>
-                        <option value="system">Système</option>
+                        <option value="light">Clear</option>
+                        <option value="dark">Dark</option>
+                        <option value="system">System</option>
                     </select>
                 </div>
                 <div class="settings-item">
-                    <label for="editor-font-size">Taille de police de l'éditeur</label>
+                    <label for="editor-font-size">Font-size of editor</label>
                     <input type="number" id="editor-font-size" min="10" max="24" value="14">
                 </div>
             </div>
@@ -108,57 +108,56 @@
             <h2>Documentation</h2>
             <div class="doc-section">
                 <div class="doc-block">
-                    <div class="doc-block-title">📊 À propos de Lista State</div>
+                    <div class="doc-block-title">📊 About Lista State</div>
                     <p>
-                        Lista State est un logiciel d'analyse de données conçu par des étudiants de
-                        l'Institut de Statistique Appliquée de l'Université du Burundi. Il fonctionne
-                        comme un laboratoire numérique pour les données : importer un jeu de données,
-                        l'explorer, calculer des indicateurs statistiques et générer des visualisations,
-                        le tout piloté par un langage dédié (DSL) simple à écrire, sans expérience de
-                        programmation avancée.
+                        Lista State is a data analysis software created by students from the Institute of Applied Statistics at the University of Burundi. 
+                        It acts as a digital lab for data: you can import a dataset, explore it, calculate statistical metrics, 
+                        and generate visualizations — all driven by a simple Domain-Specific Language (DSL) named Lista
+                        that requires no advanced coding skills.
                     </p>
                 </div>
 
                 <div class="doc-block">
-                    <div class="doc-block-title">✨ Fonctionnalités clés</div>
+                    <div class="doc-block-title">✨ Key features</div>
                     <ul class="doc-feature-list">
-                        <li>🧩 DSL intuitif — <code>Load</code>, <code>Transform</code>, <code>Analyze</code></li>
-                        <li>📂 Import multi-format — CSV, Excel</li>
-                        <li>🔧 Manipulation des tables — filtrer, sélectionner, joindre, grouper, créer des features</li>
-                        <li>📈 Statistiques — moyennes, corrélations, tests t, ANOVA, et plus</li>
-                        <li>💾 Sessions portables — tables, analyses et paramètres dans un seul fichier <code>.lst</code></li>
-                        <li>🎨 Interface moderne — thèmes clair/sombre et apparence personnalisable</li>
+                        <li>🧩 Intuitive DSL Lista — <code>Load</code>, <code>Transform</code>, <code>Analyze</code></li>
+                        <li>📂 Multi-format Import — CSV, Excel</li>
+                        <li>🔧Table Manipulation — filter, select, join, group, and create features</li>
+                        <li>📈 Statistics — means, correlations, t-tests, ANOVA, and more</li>
+                        <li>💾 Portable Sessions — tables, analyses, and settings in a single file <code>.lst</code></li>
+                        <li>🎨 Modern Interface — Light/Dark Themes</li>
                     </ul>
                 </div>
 
                 <div class="doc-block">
-                    <div class="doc-block-title">🚀 Démarrage rapide</div>
+                    <div class="doc-block-title">🚀 Quick Start</div>
                     <ol class="doc-steps">
-                        <li>Cloner le dépôt : <code>git clone https://github.com/frasasu/lista_state.git</code></li>
-                        <li>Lancer l'application : <code>python main.py</code></li>
-                        <li>Ouvrir l'onglet <strong>Data Analysis</strong>, taper <code>Load demo as data</code> puis cliquer sur <strong>Run</strong></li>
+                        <li>Clone the Repository : <code>git clone https://github.com/frasasu/lista_state.git</code></li>
+                        <li>Open the folder app <code>cd app</code></li>
+                        <li>Launch the Application : <code>python main.py</code></li>
+                        <li>Open the Tab <strong>Data Analysis</strong>, tap <code>Load demo as data</code> then click on <strong>Run</strong></li>
                     </ol>
                 </div>
 
                 <div class="doc-block">
-                    <div class="doc-block-title">⌨️ Raccourcis clavier</div>
+                    <div class="doc-block-title">⌨️ Keyboard Shortcuts</div>
                     <table class="shortcuts-table">
-                        <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Sauvegarder la session</td></tr>
-                        <tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>Sauvegarder la table courante</td></tr>
-                        <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Supprimer l'analyse courante</td></tr>
-                        <tr><td><kbd>Échap</kbd></td><td>Fermer une fenêtre modale / quitter le plein écran</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>S</kbd></td><td>Save the Session</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>T</kbd></td><td>Save the Current Table</td></tr>
+                        <tr><td><kbd>Ctrl</kbd> + <kbd>D</kbd></td><td>Delete the Current Analysis</td></tr>
+                        <tr><td><kbd>Échap</kbd></td><td>Close a Modal Window / Exit Full Screen</td></tr>
                     </table>
                 </div>
 
                 <div class="doc-footer">
-                    <span>Lista State</span> · <span>v1.0.0</span> · <span>Licence GPL-3.0</span> · <span>Projet étudiant — Université du Burundi</span>
+                    <span>Lista State</span> · <span>v1.0.0</span> · <span>Licence GPL-3.0</span> · <span>Student Project — University of Burundi</span>
                 </div>
             </div>
         </div>
     </div>
     <div class="settings-actions">
-        <button class="settings-btn primary" onclick="settingsManager.saveSettings()">Sauvegarder</button>
-        <button class="settings-btn" onclick="settingsManager.resetSettings()">Réinitialiser</button>
+        <button class="settings-btn primary" onclick="settingsManager.saveSettings()">Save</button>
+        <button class="settings-btn" onclick="settingsManager.resetSettings()">Reset</button>
     </div>
 </div>
 </div>
