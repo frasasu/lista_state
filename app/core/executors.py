@@ -1,19 +1,32 @@
 # executors.py
 import math
 import traceback
+import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
-from .dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
+from core.dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
 from .stats_calculator import StatsCalculator
 from .vis import Visualizer
 
 
 def convert_to_json_serializable(obj):
-    """Convertit les types spéciaux en types Python standards pour JSON"""
+
     if obj is None:
         return None
-    if isinstance(obj, (int, float, bool, str)):
+
+    if isinstance(obj, np.generic):
+        obj = obj.item()
+
+    if isinstance(obj, bool):
         return obj
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, (int, str)):
+        return obj
+    if isinstance(obj, np.ndarray):
+        return [convert_to_json_serializable(item) for item in obj.tolist()]
     if isinstance(obj, (list, tuple)):
         return [convert_to_json_serializable(item) for item in obj]
     if isinstance(obj, dict):
