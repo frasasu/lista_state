@@ -220,6 +220,7 @@ class Lexer:
         ('QQ_PLOT', r'^qq_plot\b',),
         ('ACF_PLOT', r'^acf_plot\b',),
         ('PIE_CHART', r'^pie_chart\b',),
+        ('PAIR_PLOT', r'^pair_plot\b',),
 
         # ===== FONCTIONS DE TRANSFORMATION =====
         ('SELECT', r'^select\b',),

@@ -2,6 +2,7 @@ import webview
 import os
 import sys
 import zipfile
+import base64
 from pathlib import PurePosixPath
 import json
 from typing import Dict, Any, Optional, Tuple
@@ -12,8 +13,8 @@ from core import TableImporter
 
 
 def get_base_path():
-    if "__compiled__" in globals():
-        return os.path.dirname(os.path.abspath(sys.argv[0]))
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
     else:
         return os.path.dirname(os.path.abspath(__file__))
 
@@ -185,6 +186,50 @@ class ManagerApp:
             return self.importer.import_table()
         except Exception as e:
             print(f"Erreur import_table: {e}")
+            return {"error": str(e)}
+
+    def save_chart_image(self, base64_data: str, suggested_filename: str = "graphique.png") -> Dict[str, Any]:
+
+        try:
+            window = webview.active_window()
+            if not window:
+                return {"error": "Fenêtre non disponible"}
+
+            if not suggested_filename:
+                suggested_filename = "graphique.png"
+            if not suggested_filename.lower().endswith(".png"):
+                suggested_filename += ".png"
+
+            file_path = window.create_file_dialog(
+                webview.SAVE_DIALOG,
+                save_filename=suggested_filename,
+                file_types=('Image PNG (*.png)',)
+            )
+
+            if not file_path:
+                return {"cancelled": True}
+
+            if isinstance(file_path, (tuple, list)):
+                file_path = file_path[0]
+
+            if not file_path.lower().endswith(".png"):
+                file_path += ".png"
+
+            # Retirer un éventuel préfixe "data:image/png;base64,"
+            comma_index = base64_data.find(",")
+            if comma_index != -1 and base64_data[:comma_index].startswith("data:"):
+                base64_data = base64_data[comma_index + 1:]
+
+            image_bytes = base64.b64decode(base64_data)
+
+            with open(file_path, "wb") as f:
+                f.write(image_bytes)
+
+            return {"success": True, "path": file_path}
+
+        except Exception as e:
+            print(f"Erreur dans save_chart_image: {e}")
+            traceback.print_exc()
             return {"error": str(e)}
 
     def evaluate_dsl(self, code: str, datas: dict) -> dict:

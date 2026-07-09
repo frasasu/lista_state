@@ -600,7 +600,7 @@ class Parser:
 
         # Type de graphique
         chart_types = ["HISTOGRAM", "BAR_CHART", "SCATTER", "LINE_CHART", "BOX_PLOT", 
-                       "VIOLIN_PLOT", "HEATMAP", "QQ_PLOT", "ACF_PLOT", "PIE_CHART"]
+                       "VIOLIN_PLOT", "HEATMAP", "QQ_PLOT", "ACF_PLOT", "PIE_CHART", "PAIR_PLOT"]
         node["chart_type"] = self.consume_any(chart_types)["value"]
 
         # Cible (table)
@@ -649,7 +649,13 @@ class Parser:
                 else:
                     params[param_name] = self.consume("IDENTIFIER")["value"] == "true"
             elif param_name == "x" or param_name == "y":
-                params[param_name] = self.consume("IDENTIFIER")["value"]
+                # Accepte soit une colonne unique (y = GDP), soit une liste de
+                # colonnes (y = [pib_moyen, inflation_moyenne]) pour les graphiques
+                # en lignes multi-séries.
+                if self.peek() and self.peek()["type"] == "LBRACKET":
+                    params[param_name] = self.parse_list()
+                else:
+                    params[param_name] = self.consume("IDENTIFIER")["value"]
             elif param_name in ['values','labels','show_percent']:
                 params[param_name] = self.consume("IDENTIFIER")["value"]
             elif param_name == 'columns':

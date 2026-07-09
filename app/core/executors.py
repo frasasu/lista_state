@@ -1,6 +1,7 @@
 # executors.py
 import math
 import traceback
+import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
 from .dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
@@ -9,11 +10,38 @@ from .vis import Visualizer
 
 
 def convert_to_json_serializable(obj):
-    """Convertit les types spéciaux en types Python standards pour JSON"""
+    """Convertit les types spéciaux en types Python standards, strictement valides en JSON.
+
+    IMPORTANT : `NaN` et `Infinity` ne sont PAS des tokens JSON valides (bien que
+    `json.dumps` de Python les accepte par défaut). Or c'est ce `json.dumps` que
+    pywebview utilise pour transmettre les résultats de Python vers JavaScript.
+    Dès qu'une statistique (std, skewness, corrélation, etc.) vaut NaN ou Infini
+    — ce qui arrive couramment sur le terrain avec une colonne constante, un
+    échantillon trop petit ou une division par zéro — le texte JSON produit
+    devient invalide, `JSON.parse()` échoue côté JavaScript, et l'appel
+    `pywebview.api.evaluate_dsl(...)` est rejeté silencieusement : le bouton
+    "Run" ne montre alors AUCUN résultat et AUCUNE erreur. On neutralise donc
+    systématiquement NaN/Infinity ici (converties en None).
+    """
     if obj is None:
         return None
-    if isinstance(obj, (int, float, bool, str)):
+
+    # Types scalaires numpy (np.float64, np.int64, np.bool_...) : on les convertit
+    # d'abord en types Python natifs, sinon ils ne matchent aucun isinstance()
+    # ci-dessous et finissent transformés (à tort) en simples chaînes de caractères.
+    if isinstance(obj, np.generic):
+        obj = obj.item()
+
+    if isinstance(obj, bool):
         return obj
+    if isinstance(obj, float):
+        if math.isnan(obj) or math.isinf(obj):
+            return None
+        return obj
+    if isinstance(obj, (int, str)):
+        return obj
+    if isinstance(obj, np.ndarray):
+        return [convert_to_json_serializable(item) for item in obj.tolist()]
     if isinstance(obj, (list, tuple)):
         return [convert_to_json_serializable(item) for item in obj]
     if isinstance(obj, dict):
@@ -1441,6 +1469,62 @@ class Evaluator:
                 values=values,
                 title=title
             )
+
+        # ===== VIOLIN PLOT =====
+        elif chart_type == "violin_plot":
+            # Récupérer les colonnes (même logique que BOX_PLOT)
+            columns = self._get_param(params, ["COLUMNS", "columns"])
+            if not columns:
+                column = self._get_param(params, ["COLUMN", "column"])
+                if column:
+                    columns = [column]
+                else:
+                    # Par défaut, prendre les 3 premières colonnes numériques
+                    columns = df.columns[:3]
+
+            valid_columns = [col for col in columns if col in df.columns]
+            if not valid_columns:
+                self.add_output("error", "Aucune colonne valide trouvée pour VIOLIN_PLOT", self.current_line)
+                return
+
+            data_dict = {}
+            for col in valid_columns:
+                data_dict[col] = [x for x in df[col] if x is not None]
+
+            title = self._get_param(params, ["TITLE", "title"], "Distribution (violon)")
+            xlabel = self._get_param(params, ["XLABEL", "xlabel"], "")
+            ylabel = self._get_param(params, ["YLABEL", "ylabel"], "Valeurs")
+
+            svg_content = self.viz.violin_plot(
+                data_dict,
+                title=title,
+                x_label=xlabel,
+                y_label=ylabel
+            )
+
+        # ===== PAIR PLOT (matrice de nuages de points) =====
+        elif chart_type == "pair_plot":
+            columns = self._get_param(params, ["COLUMNS", "columns"])
+            if not columns:
+                # Par défaut, toutes les colonnes numériques
+                columns = [col for col in df.columns if any(isinstance(val, (int, float)) for val in df[col] if val is not None)]
+
+            valid_columns = [col for col in columns if col in df.columns]
+            if len(valid_columns) < 2:
+                self.add_output("error", "Au moins 2 colonnes numériques sont nécessaires pour PAIR_PLOT", self.current_line)
+                return
+
+            hue = self._get_param(params, ["COLOR", "color"])
+            if hue and hue not in df.columns:
+                hue = None
+
+            title = self._get_param(params, ["TITLE", "title"], "Matrice de nuages de points")
+
+            try:
+                svg_content = self.viz.pairplot_svg(df.frame, columns=valid_columns, hue=hue)
+            except Exception as e:
+                self.add_output("error", f"Erreur lors de la génération du PAIR_PLOT: {e}", self.current_line)
+                return
 
         else:
             self.add_output("error", f"Type de graphique non supporté: {chart_type}", self.current_line)

@@ -188,21 +188,57 @@ class AnalysisManager{
     async runAnalysis() {
         const code = this.editor.value;
         const settings = this.core.getSettings();
+        const runBtn = document.querySelector(".analysis .left .bottom .box .run");
 
         await this.saveCurrentAnalysis();
 
-        const result = await pywebview.api.evaluate_dsl(code, this.core.payload);
-
-        if (result.success) {
-            this.core.payload = result.datas;
-            displayEvaluatorResults(result.messages, settings);
-            await this.core.save();
-        } else {
-            displayEvaluatorResults(result.messages || [{
-                type: 'error',
-                content: result.errors?.join('\n') || 'Erreur inconnue'
-            }], settings);
+        this.showAnalysisLoading();
+        if (runBtn) {
+            runBtn.classList.add("running");
+            runBtn.style.pointerEvents = "none";
         }
+
+        try {
+            const result = await pywebview.api.evaluate_dsl(code, this.core.payload);
+
+            if (result.success) {
+                this.core.payload = result.datas;
+                displayEvaluatorResults(result.messages, settings);
+                await this.core.save();
+            } else {
+                displayEvaluatorResults(result.messages || [{
+                    type: 'error',
+                    content: result.errors?.join('\n') || 'Erreur inconnue'
+                }], settings);
+            }
+        } catch (error) {
+            // Filet de sécurité : si l'appel pywebview échoue lui-même (ex: réponse
+            // non sérialisable), on affiche quand même une erreur visible au lieu
+            // de laisser le panneau de résultats vide sans aucune explication.
+            console.error("Erreur lors de l'exécution de l'analyse:", error);
+            displayEvaluatorResults([{
+                type: 'error',
+                content: `Erreur inattendue lors de l'exécution : ${error?.message || error}`
+            }], settings);
+        } finally {
+            if (runBtn) {
+                runBtn.classList.remove("running");
+                runBtn.style.pointerEvents = "";
+            }
+        }
+    }
+
+    /** Affiche un indicateur "Analyse en cours..." dans le panneau de résultats. */
+    showAnalysisLoading() {
+        const rightPanel = document.querySelector(".analysis .right");
+        if (!rightPanel) return;
+
+        rightPanel.innerHTML = `
+            <div class="analysis-loading">
+                <div class="analysis-loading-spinner"></div>
+                <div class="analysis-loading-text">Analyse en cours...</div>
+            </div>
+        `;
     }
 }
 
@@ -1282,16 +1318,43 @@ function downloadSVGAsPNG(container, titleHint) {
                         return;
                     }
 
-                    const pngUrl = URL.createObjectURL(pngBlob);
                     const safeName = (titleHint || 'graphique')
                         .toString()
                         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                         .replace(/[^a-zA-Z0-9-_]+/g, '_')
                         .replace(/^_+|_+$/g, '') || 'graphique';
+                    const filename = `${safeName}.png`;
 
+                    // Priorité à l'API native pywebview (fiable sur toutes les
+                    // plateformes desktop : ouvre une vraie boîte de dialogue
+                    // "Enregistrer sous", proposant le dossier Téléchargements).
+                    if (typeof pywebview !== 'undefined' && pywebview.api && pywebview.api.save_chart_image) {
+                        const reader = new FileReader();
+                        reader.onload = async function() {
+                            try {
+                                const result = await pywebview.api.save_chart_image(reader.result, filename);
+                                if (result && result.error) {
+                                    alert(`Erreur lors de l'enregistrement de l'image : ${result.error}`);
+                                }
+                                // result.cancelled === true -> l'utilisateur a annulé, rien à faire
+                            } catch (err) {
+                                console.error("Erreur save_chart_image:", err);
+                                alert("Erreur lors de l'enregistrement de l'image");
+                            }
+                        };
+                        reader.onerror = function() {
+                            alert("Erreur lors de la lecture de l'image générée");
+                        };
+                        reader.readAsDataURL(pngBlob);
+                        return;
+                    }
+
+                    // Repli navigateur classique (utile hors de l'application desktop,
+                    // par exemple pendant le développement dans un simple navigateur).
+                    const pngUrl = URL.createObjectURL(pngBlob);
                     const a = document.createElement('a');
                     a.href = pngUrl;
-                    a.download = `${safeName}.png`;
+                    a.download = filename;
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);

@@ -99,7 +99,14 @@ jobs:
             --windows-icon-from-ico="app/assets/monicone.ico" `
             --output-dir="dist" `
             --output-filename="ListaState.exe" `
+            --enable-plugin=numpy `
             --include-package=core `
+            --include-package=numpy `
+            --include-package=pandas `
+            --include-package=scipy `
+            --include-package=statsmodels `
+            --include-package=matplotlib `
+            --include-package=seaborn `
             --include-data-dir="app/ui=ui" `
             --include-data-dir="app/assets=assets" `
             --assume-yes-for-downloads `
