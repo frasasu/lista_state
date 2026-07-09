@@ -4,35 +4,16 @@ import traceback
 import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
-from .dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
+from core.dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
 from .stats_calculator import StatsCalculator
 from .vis import Visualizer
 
 
 def convert_to_json_serializable(obj):
-    """Convertit les types spéciaux en types Python standards, strictement valides en JSON.
-
-    IMPORTANT : `NaN` et `Infinity` ne sont PAS des tokens JSON valides (bien que
-    `json.dumps` de Python les accepte par défaut). Or c'est ce `json.dumps` que
-    pywebview utilise pour transmettre les résultats de Python vers JavaScript.
-    Dès qu'une statistique (std, skewness, corrélation, etc.) vaut NaN ou Infini
-    — ce qui arrive couramment sur le terrain avec une colonne constante, un
-    échantillon trop petit ou une division par zéro — le texte JSON produit
-    devient invalide, `JSON.parse()` échoue côté JavaScript, et l'appel
-    `pywebview.api.evaluate_dsl(...)` est rejeté silencieusement : le bouton
-    "Run" ne montre alors AUCUN résultat et AUCUNE erreur. On neutralise donc
-    systématiquement NaN/Infinity ici (converties en None).
-    """
+    """Convertit les types spéciaux en types Python standards pour JSON"""
     if obj is None:
         return None
-
-    # Types scalaires numpy (np.float64, np.int64, np.bool_...) : on les convertit
-    # d'abord en types Python natifs, sinon ils ne matchent aucun isinstance()
-    # ci-dessous et finissent transformés (à tort) en simples chaînes de caractères.
-    if isinstance(obj, np.generic):
-        obj = obj.item()
-
-    if isinstance(obj, bool):
+    if isinstance(obj, (int, float, bool, str)):
         return obj
     if isinstance(obj, float):
         if math.isnan(obj) or math.isinf(obj):
