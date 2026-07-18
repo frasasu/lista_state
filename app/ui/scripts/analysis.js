@@ -4,7 +4,7 @@ class AnalysisManager{
     constructor() {
         this.core = DataCore;
         this.currentAnalysisName = null;
-        this.editor = document.querySelector(".analysis .left .top #editor");
+        this.editor = document.querySelector(".analysis .left .top #editor-r");
         this.lineNumbers = document.getElementById('lineNumbers');
         this.list_analysis = document.querySelector(".analysis .left .bottom .under .liste-analysis");
     }

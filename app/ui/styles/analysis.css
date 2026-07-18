@@ -87,7 +87,7 @@
 }
 
 /* Editor Textarea - Modernisé */
-.analysis .left .top #editor {
+.analysis .left .top #editor-r {
     background: #1a1e2c;
     color: #f8f8f2;
     font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
@@ -108,12 +108,12 @@
     transition: all 0.2s ease;
 }
 
-.analysis .left .top #editor:focus {
+.analysis .left .top #editor-r.run {
     box-shadow: inset 0 0 0 2px #6272a4;
 }
 
 /* Syntax Highlighting Colors (pour référence JS) */
-.analysis .left .top #editor::selection {
+.analysis .left .top #editor-r::selection {
     background: #44475a;
 }
 
@@ -1365,7 +1365,7 @@
         min-height: 350px;
     }
 
-    .analysis .left .top #editor {
+    .analysis .left .top #editor-r {
         min-height: 350px;
     }
 

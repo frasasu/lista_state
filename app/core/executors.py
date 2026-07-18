@@ -1,10 +1,9 @@
 # executors.py
 import math
 import traceback
-import numpy as np
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Union
-from core.dataframe import DataTable, to_numeric, is_numeric, ensure_list_length
+from .simple_dataframe import SimpleDataFrame, to_numeric, is_numeric, ensure_list_length
 from .stats_calculator import StatsCalculator
 from .vis import Visualizer
 
@@ -15,21 +14,13 @@ def convert_to_json_serializable(obj):
         return None
     if isinstance(obj, (int, float, bool, str)):
         return obj
-    if isinstance(obj, float):
-        if math.isnan(obj) or math.isinf(obj):
-            return None
-        return obj
-    if isinstance(obj, (int, str)):
-        return obj
-    if isinstance(obj, np.ndarray):
-        return [convert_to_json_serializable(item) for item in obj.tolist()]
     if isinstance(obj, (list, tuple)):
         return [convert_to_json_serializable(item) for item in obj]
     if isinstance(obj, dict):
         return {k: convert_to_json_serializable(v) for k, v in obj.items()}
     if isinstance(obj, datetime):
         return obj.isoformat()
-    if isinstance(obj, DataTable):
+    if isinstance(obj, SimpleDataFrame):
         return obj.to_dict(orient='list')
     return str(obj)
 
@@ -37,13 +28,13 @@ def convert_to_json_serializable(obj):
 class Evaluator:
     """
     Évaluateur d'AST pour le DSL Data Science.
-    Utilise DataTable, StatsCalculator et Visualizer.
+    Utilise SimpleDataFrame, StatsCalculator et Visualizer.
     """
 
     def __init__(self, initial_datas: Dict[str, Any] = None):
         self.datas = initial_datas or {"tables": {}, "analysis": {}}
-        self.current_tables: Dict[str, DataTable] = {}
-        self.transformed_tables: Dict[str, DataTable] = {}
+        self.current_tables: Dict[str, SimpleDataFrame] = {}
+        self.transformed_tables: Dict[str, SimpleDataFrame] = {}
         self.analysis_results: Dict[str, Any] = {}
         self.variables: Dict[str, Any] = {}
         self.output_messages: List[Dict[str, Any]] = []
@@ -90,7 +81,7 @@ class Evaluator:
                 result.append(v)  # Autres types (bool, etc.)
         return result
 
-    def _convert_dataframe_columns(self, df: DataTable) -> DataTable:
+    def _convert_dataframe_columns(self, df: SimpleDataFrame) -> SimpleDataFrame:
         """Convertit les colonnes en types numériques si possible, préserve None"""
         new_df = df.copy()
         for col in new_df.columns:
@@ -98,15 +89,15 @@ class Evaluator:
         return new_df
 
     def _refresh_tables(self):
-        """Convertit les tables du dictionnaire en DataTable"""
+        """Convertit les tables du dictionnaire en SimpleDataFrame"""
         for table_name, table_data in self.datas["tables"].items():
-            df = DataTable(table_data)
+            df = SimpleDataFrame(table_data)
             df = self._convert_dataframe_columns(df)
             self.current_tables[table_name] = df
             self.transformed_tables[table_name] = df.copy()
 
     def _update_dict_tables(self):
-        """Met à jour le dictionnaire original à partir des DataTable"""
+        """Met à jour le dictionnaire original à partir des SimpleDataFrame"""
         all_tables = {**self.current_tables, **self.transformed_tables}
         for table_name, df in all_tables.items():
             dict_data = df.to_dict(orient='list')
@@ -187,14 +178,12 @@ class Evaluator:
 
         if name in self.datas["tables"]:
             table_data = self.datas["tables"][name]
-            df = DataTable(table_data)
+            df = SimpleDataFrame(table_data)
             df = self._convert_dataframe_columns(df)
             self.current_tables[alias] = df
             self.transformed_tables[alias] = df.copy()
 
-            # Afficher toutes les lignes du tableau (nécessaire pour permettre
-            # une copie complète du tableau vers un rapport/éditeur externe).
-            preview = df.to_dict(orient='records')
+            preview = df.head(10).to_dict(orient='records')
             preview = self._convert_dict_to_json_serializable(preview)
 
             self.add_output("table", {
@@ -292,8 +281,7 @@ class Evaluator:
         elif var_df:
             self.variables[alias] = df.copy()
 
-        # Afficher toutes les lignes du tableau (nécessaire pour permettre
-        # une copie complète du tableau vers un rapport/éditeur externe).
+        #preview = df.head(10).to_dict(orient='records')
         preview = df.to_dict(orient='records')
         preview = self._convert_dict_to_json_serializable(preview)
 
@@ -315,7 +303,7 @@ class Evaluator:
 
     # ========== OPÉRATIONS DE TRANSFORMATION ==========
 
-    def apply_select(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_select(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération SELECT"""
         args = operation.get("args", [])
         selected_cols = []
@@ -345,18 +333,18 @@ class Evaluator:
             return new_df.select(selected_cols)
         return new_df
 
-    def apply_drop(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_drop(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération DROP"""
         args = operation.get("args", [])
         return df.drop(args)
 
-    def apply_filter(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_filter(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération FILTER"""
         condition = operation.get("condition")
         mask = self.evaluate_filter_condition(condition, df)
         return df.filter(mask)
 
-    def apply_create_feature(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_create_feature(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération CREATE_FEATURE"""
         features = operation.get("features", [])
         new_df = df.copy()
@@ -375,13 +363,13 @@ class Evaluator:
 
         return new_df
 
-    def apply_group_by(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_group_by(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération GROUP BY"""
         columns = operation.get("columns", [])
         df._attrs['group_by_columns'] = columns
         return df
 
-    def apply_agg(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_agg(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération AGG"""
         aggregations = operation.get("aggregations", [])
         group_by_cols = df._attrs.get('group_by_columns', [])
@@ -400,7 +388,7 @@ class Evaluator:
                         value = value[0] if value else None
                     result_dict[name] = value
 
-            return DataTable({k: [v] for k, v in result_dict.items()})
+            return SimpleDataFrame({k: [v] for k, v in result_dict.items()})
 
         # Agrégation par groupe
         groups = {}
@@ -445,15 +433,15 @@ class Evaluator:
                     for col_name in df.columns:
                         numeric_values = self.do_values(df, col_name, indices, keep_none=True)
                         new_df[col_name] = numeric_values
-                    new_df = DataTable(new_df)
+                    new_df = SimpleDataFrame(new_df)
                     value = self.evaluate_expression(expr=expression, df=new_df)
                     if isinstance(value, (tuple, list)):
                         value = value[0] if value else None
                     result[name].append(value)
 
-        return DataTable(result)
+        return SimpleDataFrame(result)
 
-    def apply_join(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_join(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération JOIN"""
         table_name = operation.get("table")
         on_condition = operation.get("on")
@@ -478,7 +466,7 @@ class Evaluator:
 
         return df
 
-    def apply_having(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_having(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique une opération HAVING"""
         condition = operation.get("condition")
         mask = self.evaluate_filter_condition(condition, df)
@@ -486,7 +474,7 @@ class Evaluator:
 
     # ========== OPÉRATIONS DE NETTOYAGE ==========
 
-    def apply_drop_na(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_drop_na(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique drop_na() - Supprime les lignes avec valeurs manquantes"""
         params = operation.get("params", {})
         columns = params.get("columns")
@@ -495,7 +483,7 @@ class Evaluator:
 
         return df.drop_na(columns=columns, how=how, thresh=thresh)
 
-    def apply_fill_na(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_fill_na(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique fill_na() - Remplit les valeurs manquantes"""
         params = operation.get("params", {})
         value = params.get("value")
@@ -508,7 +496,7 @@ class Evaluator:
 
         return df.fill_na(value=value, method=method, columns=columns)
 
-    def apply_replace(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_replace(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique replace() - Remplace des valeurs"""
         params = operation.get("params", {})
         to_replace = params.get("to_replace")
@@ -517,7 +505,7 @@ class Evaluator:
 
         return df.replace(to_replace=to_replace, value=value, columns=columns)
 
-    def apply_clip(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_clip(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique clip() - Limite les valeurs à un intervalle"""
         params = operation.get("params", {})
         lower = params.get("lower")
@@ -526,7 +514,7 @@ class Evaluator:
 
         return df.clip(lower=lower, upper=upper, columns=columns)
 
-    def apply_remove_outliers(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_remove_outliers(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique remove_outliers() - Supprime les outliers"""
         params = operation.get("params", {})
         column = params.get("column")
@@ -534,14 +522,14 @@ class Evaluator:
 
         return df.remove_outliers_iqr(column=column, factor=factor)
 
-    def apply_standardize(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_standardize(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique standardize() - Standardisation (moyenne=0, écart-type=1)"""
         params = operation.get("params", {})
         columns = params.get("columns")
 
         return df.standardize(columns=columns)
 
-    def apply_min_max_scale(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_min_max_scale(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique min_max_scale() - Normalisation min-max"""
         params = operation.get("params", {})
         columns = params.get("columns")
@@ -549,7 +537,7 @@ class Evaluator:
 
         return df.min_max_scale(columns=columns, feature_range=feature_range)
 
-    def apply_one_hot_encode(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_one_hot_encode(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique one_hot_encode() - Encodage one-hot"""
         params = operation.get("params", {})
         column = params.get("column")
@@ -558,7 +546,7 @@ class Evaluator:
 
         return df.one_hot_encode(column=column, prefix=prefix, drop_first=drop_first)
 
-    def apply_label_encode(self, df: DataTable, operation: Dict[str, Any]) -> DataTable:
+    def apply_label_encode(self, df: SimpleDataFrame, operation: Dict[str, Any]) -> SimpleDataFrame:
         """Applique label_encode() - Encodage par étiquettes"""
         params = operation.get("params", {})
         column = params.get("column")
@@ -619,16 +607,14 @@ class Evaluator:
         self.transformed_tables[alias] = result_df.copy()
         self.current_tables[alias] = result_df.copy()
 
-        # Afficher toutes les lignes du tableau (nécessaire pour permettre
-        # une copie complète du tableau vers un rapport/éditeur externe).
-        preview = result_df.to_dict(orient='records')
+        preview = result_df.head(10).to_dict(orient='records')
         preview = self._convert_dict_to_json_serializable(preview)
 
         self.add_output("table", {
             "name": alias,
             "source": target,
             "columns": result_df.columns,
-            "types": [str(type(result_df[col][0]).__name__) if result_df[col] and len(result_df[col]) > 0 and result_df[col][0] is not None else 'None'
+            "types": [str(type(result_df[col][0]).__name__) if result_df[col] and len(result_df[col]) > 0 and result_df[col][0] is not None else 'None' 
                      for col in result_df.columns],
             "preview": preview,
             "shape": list(result_df.shape),
@@ -637,7 +623,7 @@ class Evaluator:
             "operations": operations_applied
         })
 
-        self.add_output("success", f"Table '{alias}' nettoyée avec succès ({result_df.shape[0]} lignes)",
+        self.add_output("success", f"Table '{alias}' nettoyée avec succès ({result_df.shape[0]} lignes)", 
                       self.current_line)
 
     # ========== COMMANDE STATS ==========
@@ -689,7 +675,7 @@ class Evaluator:
 
         self.add_output("success", f"Statistiques avancées '{analysis_name}' terminées", self.current_line)
 
-    def evaluate_stats_expression(self, expr: Any, df: DataTable) -> Any:
+    def evaluate_stats_expression(self, expr: Any, df: SimpleDataFrame) -> Any:
         """Évalue une expression statistique avancée"""
         if isinstance(expr, dict) and expr.get("type") == "function_call":
             name = expr.get("name")
@@ -727,24 +713,9 @@ class Evaluator:
                 if len(data_args) >= 1:
                     prop = data_args[1] if len(data_args) > 1 else 0
                     return self.stats.trimmed_mean(data_args[0], prop)
-            elif name == "MIDRANGE":
+            elif name == "MIDRANG":
                 if data_args and isinstance(data_args[0], list):
                     return self.stats.midrange(data_args[0])
-            elif name == "VARIANCE" or name == "VAR":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.variance(data_args[0])
-            elif name == "RANGE":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.range_stat(data_args[0])
-            elif name == "IQR":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.iqr(data_args[0])
-            elif name == "MAD":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.mad(data_args[0])
-            elif name == "CV":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.cv(data_args[0])
             elif name == "MEDIAN":
                 if data_args and isinstance(data_args[0], list):
                     return self.stats.median(data_args[0])
@@ -790,31 +761,16 @@ class Evaluator:
                 if len(data_args) >= 1:
                     mu = data_args[1] if len(data_args) > 1 else 0
                     return self.stats.t_test_onesample(data_args[0], mu)
-            elif name == "T_TEST_INDEPENDENT":
-                if len(data_args) >= 2:
-                    return self.stats.t_test_independent(data_args[0], data_args[1])
-            elif name == "ANOVA":
-                if len(data_args) >= 2:
-                    return self.stats.anova_oneway(*data_args)
-            elif name == "MANN_WHITNEY":
-                if len(data_args) >= 2:
-                    return self.stats.mann_whitney(data_args[0], data_args[1])
-            elif name == "KRUSKAL":
-                if len(data_args) >= 2:
-                    return self.stats.kruskal_wallis(*data_args)
             elif name == "F_TEST":
                 if len(data_args) >= 2:
                     return self.stats.f_test(data_args[0], data_args[1])
             elif name == "CHI2":
                 if data_args and isinstance(data_args[0], list):
                     return self.stats.chi2_test(data_args[0])
-            elif name == "SHAPIRO" or name == "SHAPIRO_WILK":
+            elif name == "SHAPIRO":
                 if data_args and isinstance(data_args[0], list):
                     return self.stats.shapiro_wilk(data_args[0])
-            elif name == "KS_TEST":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.ks_test(data_args[0])
-            elif name == "ANDERSON" or name == "ANDERSON_DARLING":
+            elif name == "ANDERSON":
                 if data_args and isinstance(data_args[0], list):
                     return self.stats.anderson_darling(data_args[0])
 
@@ -834,43 +790,6 @@ class Evaluator:
             elif name == "MOVING_AVG":
                 if len(data_args) >= 2:
                     return self.stats.moving_average(data_args[0], data_args[1])
-            elif name == "EWMA":
-                if data_args and isinstance(data_args[0], list):
-                    alpha = data_args[1] if len(data_args) > 1 else 0.3
-                    return self.stats.ewma(data_args[0], alpha)
-            elif name == "AUTOCORR":
-                if data_args and isinstance(data_args[0], list):
-                    lag_k = data_args[1] if len(data_args) > 1 else 1
-                    return self.stats.autocorrelation(data_args[0], lag_k)
-            elif name == "PACF":
-                if data_args and isinstance(data_args[0], list):
-                    nlags = data_args[1] if len(data_args) > 1 else 10
-                    return self.stats.pacf(data_args[0], nlags)
-            elif name == "ZSCORE":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.zscore(data_args[0])
-            elif name == "ROBUST_SCALE":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.robust_scale(data_args[0])
-            elif name == "PERCENTILE_RANK":
-                if len(data_args) >= 2:
-                    return self.stats.percentile_rank(data_args[0], data_args[1])
-            elif name == "BOOTSTRAP":
-                if data_args and isinstance(data_args[0], list):
-                    n_samples = data_args[1] if len(data_args) > 1 else 1000
-                    return self.stats.bootstrap(data_args[0], int(n_samples))
-            elif name == "JACKKNIFE":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.jackknife(data_args[0])
-            elif name == "COVARIANCE_MATRIX":
-                cols = [a.get("value") for a in args if isinstance(a, dict) and a.get("type") == "column"]
-                return self.stats.covariance_matrix(cols)
-            elif name == "CORRELATION_MATRIX":
-                cols = [a.get("value") for a in args if isinstance(a, dict) and a.get("type") == "column"]
-                return self.stats.correlation_matrix(cols)
-            elif name == "RANK":
-                if data_args and isinstance(data_args[0], list):
-                    return self.stats.rank(data_args[0])
 
             elif name == "EUCLIDEAN":
                 if len(data_args) >= 2:
@@ -878,16 +797,9 @@ class Evaluator:
             elif name == "MANHATTAN":
                 if len(data_args) >= 2:
                     return self.stats.manhattan_distance(data_args[0], data_args[1])
-            elif name == "MINKOWSKI":
-                if len(data_args) >= 2:
-                    p = data_args[2] if len(data_args) > 2 else 3
-                    return self.stats.minkowski_distance(data_args[0], data_args[1], p)
             elif name == "COSINE":
                 if len(data_args) >= 2:
                     return self.stats.cosine_similarity(data_args[0], data_args[1])
-            elif name == "JACCARD":
-                if len(data_args) >= 2:
-                    return self.stats.jaccard_similarity(data_args[0], data_args[1])
 
         return None
 
@@ -1451,62 +1363,6 @@ class Evaluator:
                 title=title
             )
 
-        # ===== VIOLIN PLOT =====
-        elif chart_type == "violin_plot":
-            # Récupérer les colonnes (même logique que BOX_PLOT)
-            columns = self._get_param(params, ["COLUMNS", "columns"])
-            if not columns:
-                column = self._get_param(params, ["COLUMN", "column"])
-                if column:
-                    columns = [column]
-                else:
-                    # Par défaut, prendre les 3 premières colonnes numériques
-                    columns = df.columns[:3]
-
-            valid_columns = [col for col in columns if col in df.columns]
-            if not valid_columns:
-                self.add_output("error", "Aucune colonne valide trouvée pour VIOLIN_PLOT", self.current_line)
-                return
-
-            data_dict = {}
-            for col in valid_columns:
-                data_dict[col] = [x for x in df[col] if x is not None]
-
-            title = self._get_param(params, ["TITLE", "title"], "Distribution (violon)")
-            xlabel = self._get_param(params, ["XLABEL", "xlabel"], "")
-            ylabel = self._get_param(params, ["YLABEL", "ylabel"], "Valeurs")
-
-            svg_content = self.viz.violin_plot(
-                data_dict,
-                title=title,
-                x_label=xlabel,
-                y_label=ylabel
-            )
-
-        # ===== PAIR PLOT (matrice de nuages de points) =====
-        elif chart_type == "pair_plot":
-            columns = self._get_param(params, ["COLUMNS", "columns"])
-            if not columns:
-                # Par défaut, toutes les colonnes numériques
-                columns = [col for col in df.columns if any(isinstance(val, (int, float)) for val in df[col] if val is not None)]
-
-            valid_columns = [col for col in columns if col in df.columns]
-            if len(valid_columns) < 2:
-                self.add_output("error", "Au moins 2 colonnes numériques sont nécessaires pour PAIR_PLOT", self.current_line)
-                return
-
-            hue = self._get_param(params, ["COLOR", "color"])
-            if hue and hue not in df.columns:
-                hue = None
-
-            title = self._get_param(params, ["TITLE", "title"], "Matrice de nuages de points")
-
-            try:
-                svg_content = self.viz.pairplot_svg(df.frame, columns=valid_columns, hue=hue)
-            except Exception as e:
-                self.add_output("error", f"Erreur lors de la génération du PAIR_PLOT: {e}", self.current_line)
-                return
-
         else:
             self.add_output("error", f"Type de graphique non supporté: {chart_type}", self.current_line)
             return
@@ -1621,11 +1477,11 @@ class Evaluator:
         elif collection_name in self.variables:
             collection = self.variables[collection_name]
 
-        if collection is not None and isinstance(collection, DataTable):
+        if collection is not None and isinstance(collection, SimpleDataFrame):
             for idx in range(len(collection)):
                 row_dict = collection[idx]
                 row_dict = self._convert_dict_to_json_serializable(row_dict)
-                row_dict = DataTable.from_records([row_dict])
+                row_dict = SimpleDataFrame.from_records([row_dict])
                 self.variables[variable] = row_dict
                 self.add_output("info", f"Itération {idx+1} sur {collection_name}", self.current_line)
 
@@ -1643,7 +1499,7 @@ class Evaluator:
 
     # ========== ÉVALUATION D'EXPRESSIONS ==========
 
-    def evaluate_filter_condition(self, condition: Any, df: DataTable) -> List[bool]:
+    def evaluate_filter_condition(self, condition: Any, df: SimpleDataFrame) -> List[bool]:
         """Évalue une condition de filtre et retourne un masque booléen"""
         if condition is None:
             return [True] * len(df)
@@ -1770,7 +1626,7 @@ class Evaluator:
 
         return [True] * len(df)
 
-    def evaluate_expression(self, expr: Any, df: DataTable = None) -> Any:
+    def evaluate_expression(self, expr: Any, df: SimpleDataFrame = None) -> Any:
         """Évalue une expression mathématique"""
         if expr is None:
             return None
@@ -1858,7 +1714,7 @@ class Evaluator:
 
         return expr
 
-    def evaluate_function(self, func_call: Dict[str, Any], df: DataTable = None) -> Any:
+    def evaluate_function(self, func_call: Dict[str, Any], df: SimpleDataFrame = None) -> Any:
         """Évalue un appel de fonction"""
         name = func_call.get("name")
         args = func_call.get("arguments", [])
@@ -2007,46 +1863,24 @@ class Evaluator:
 
         return evaluated_args[0] if evaluated_args else None
 
-    def evaluate_window_function(self, name: str, args: List, over: Dict, df: DataTable) -> Any:
-        """Évalue une fonction de fenêtrage (RANK, ROW_NUMBER) via pandas
-        (groupby + rank/cumcount), en respectant PARTITION BY et ORDER BY."""
+    def evaluate_window_function(self, name: str, args: List, over: Dict, df: SimpleDataFrame) -> Any:
+        """Évalue une fonction de fenêtrage"""
         if df is None or len(df) == 0:
             return None
 
-        import pandas as pd
-
-        frame = df.frame
-        partition_by = [c for c in over.get("partition_by", []) if c in frame.columns]
-        order_by = over.get("order_by", [])
+        partition_by = over.get("partition_by", [])
 
         if name == "RANK":
-            if not order_by:
-                return [1] * len(df)
-            sort_cols = [o["column"] for o in order_by if o.get("column") in frame.columns]
-            ascending = [o.get("direction", "ASC").upper() != "DESC" for o in order_by
-                         if o.get("column") in frame.columns]
-            if not sort_cols:
-                return [1] * len(df)
-            values = frame[sort_cols].apply(pd.to_numeric, errors="coerce")
-            for col, asc in zip(sort_cols, ascending):
-                if not asc:
-                    values[col] = -values[col]
-            if partition_by:
-                ranks = values.groupby([frame[c] for c in partition_by]).rank(method="min")
-                combined = ranks[sort_cols[0]]
-            else:
-                combined = values[sort_cols[0]].rank(method="min")
-            return [int(r) for r in combined.tolist()]
-
+            result = [1] * len(df)
+            if partition_by and all(col in df.columns for col in partition_by):
+                pass
+            return result
         elif name == "ROW_NUMBER":
-            if partition_by:
-                grp = frame.groupby(partition_by).cumcount() + 1
-                return [int(x) for x in grp.tolist()]
             return list(range(1, len(df) + 1))
 
         return [None] * len(df)
 
-    def evaluate_case(self, case_expr: Dict[str, Any], df: DataTable = None) -> Any:
+    def evaluate_case(self, case_expr: Dict[str, Any], df: SimpleDataFrame = None) -> Any:
         """Évalue une expression CASE WHEN"""
         when_then = case_expr.get("when_then", [])
         else_val = case_expr.get("else")
@@ -2145,7 +1979,7 @@ class Evaluator:
 
         return bool(condition)
 
-    def evaluate_stat_function(self, name: str, args: List, df: DataTable) -> Any:
+    def evaluate_stat_function(self, name: str, args: List, df: SimpleDataFrame) -> Any:
         """Évalue une fonction statistique pour ANALYZE"""
         evaluated_args = [self.evaluate_expression(arg, df) for arg in args]
 
@@ -2266,7 +2100,7 @@ class Evaluator:
     def get_analysis_names(self) -> List[str]:
         return list(self.datas["analysis"].keys())
 
-    def get_transformed_table(self, name: str) -> Optional[DataTable]:
+    def get_transformed_table(self, name: str) -> Optional[SimpleDataFrame]:
         """Retourne une table transformée par son nom"""
         return self.transformed_tables.get(name)
 

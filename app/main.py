@@ -13,8 +13,8 @@ from core import TableImporter
 
 
 def get_base_path():
-    if "__compiled__" in globals():
-        return os.path.dirname(os.path.abspath(sys.argv[0]))
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
     else:
         return os.path.dirname(os.path.abspath(__file__))
 

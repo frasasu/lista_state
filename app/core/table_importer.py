@@ -1,27 +1,26 @@
-
-from __future__ import annotations
-
+# table_importer.py
+import csv
+import openpyxl
 import os
-from typing import Any, Dict, List, Optional, Tuple
-
-import pandas as pd
-
+from typing import Dict, List, Optional, Tuple, Any
 
 class TableImporter:
-    """Importateur de fichiers CSV et Excel, basé sur pandas."""
+    """
+    Importateur de fichiers CSV et Excel
+    """
 
     def __init__(self, webview_instance):
         self.webview = webview_instance
 
     def import_table(self) -> Tuple[Optional[str], Optional[Dict[str, List]]]:
-        """Importe un fichier CSV ou Excel via boîte de dialogue."""
+        """Importe un fichier CSV ou Excel via boîte de dialogue"""
         window = self.webview.active_window()
-        file_types = ("Fichier csv(*.csv)", "Fichier xlsx(*.xlsx)", "Fichier xls(*.xls)")
+        file_types = ('Fichier csv(*.csv)', 'Fichier xlsx(*.xlsx)', 'Fichier xls(*.xls)')
 
         file_paths = window.create_file_dialog(
             self.webview.OPEN_DIALOG,
             allow_multiple=False,
-            file_types=file_types,
+            file_types=file_types
         )
 
         if not file_paths:
@@ -42,36 +41,90 @@ class TableImporter:
             print(f"Erreur lors de l'import: {e}")
             return None, None
 
-    # ------------------------------------------------------------------
     def _import_file(self, file_path: str) -> Optional[Dict[str, List]]:
-        if file_path.endswith(".csv"):
+        """Importe un fichier depuis son chemin"""
+        if file_path.endswith('.csv'):
             return self._import_csv(file_path)
-        elif file_path.endswith((".xlsx", ".xls")):
+        elif file_path.endswith(('.xlsx', '.xls')):
             return self._import_excel(file_path)
         return None
 
     def _import_csv(self, file_path: str) -> Dict[str, List]:
-        """Lit un CSV avec `pandas.read_csv` (sniffing automatique du séparateur)."""
-        try:
-            df = pd.read_csv(file_path, sep=None, engine="python", encoding="utf-8-sig")
-        except Exception:
-            # Repli robuste si le sniffing échoue (fichier atypique)
-            df = pd.read_csv(file_path, encoding="utf-8-sig")
-        return self._frame_to_dict(df)
+        """Importe un fichier CSV"""
+        result = {}
+
+        with open(file_path, 'r', encoding='utf-8-sig') as f:
+            lines = [line.strip() for line in f if line.strip()]
+
+        if not lines:
+            return result
+
+        first_line = lines[0]
+        delimiter = self._detect_delimiter(first_line)
+
+        headers = [h.strip() for h in first_line.split(delimiter)]
+
+        for header in headers:
+            result[header] = []
+
+        for line in lines[1:]:
+            values = line.split(delimiter)
+            for i, value in enumerate(values):
+                if i < len(headers):
+                    result[headers[i]].append(self._convert_value(value.strip()))
+
+        return result
 
     def _import_excel(self, file_path: str) -> Dict[str, List]:
-        """Lit un classeur Excel avec `pandas.read_excel` (moteur openpyxl)."""
-        df = pd.read_excel(file_path, engine="openpyxl" if file_path.endswith(".xlsx") else None)
-        return self._frame_to_dict(df)
+        """Importe un fichier Excel"""
+        result = {}
 
-    # ------------------------------------------------------------------
-    @staticmethod
-    def _frame_to_dict(df: pd.DataFrame) -> Dict[str, List]:
-        """Convertit un DataFrame pandas en {colonne: [valeurs]} avec None
-        pour les valeurs manquantes (NaN/NaT), et types Python natifs."""
-        df = df.convert_dtypes()  # types "pythoniques" cohérents (Int64, boolean, string...)
-        result: Dict[str, List] = {}
-        for col in df.columns:
-            series = df[col].where(pd.notnull(df[col]), None)
-            result[str(col)] = [v.item() if hasattr(v, "item") else v for v in series.tolist()]
+        wb = openpyxl.load_workbook(file_path, data_only=True)
+        ws = wb.active
+
+        headers = []
+        for cell in ws[1]:
+            header = cell.value or f"Colonne_{len(headers)+1}"
+            headers.append(str(header))
+
+        for header in headers:
+            result[header] = []
+
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            for i, value in enumerate(row):
+                if i < len(headers):
+                    result[headers[i]].append(self._convert_value(value))
+
         return result
+
+    def _detect_delimiter(self, line: str) -> str:
+        """Détecte le délimiteur CSV"""
+        delimiters = [',', ';', '\t', '|']
+        counts = {d: line.count(d) for d in delimiters}
+        return max(counts, key=counts.get) if max(counts.values()) > 0 else ','
+
+    def _convert_value(self, value: Any) -> Any:
+        """Convertit une valeur au bon type"""
+        if value is None:
+            return None
+        if isinstance(value, (bool, int, float)):
+            return value
+        if isinstance(value, str):
+            value = value.strip()
+            if not value:
+                return None
+            if value.lower() in ('true', 'vrai', 'yes', 'oui', '1'):
+                return True
+            if value.lower() in ('false', 'faux', 'no', 'non', '0'):
+                return False
+            try:
+                if value.isdigit() or (value[0] == '-' and value[1:].isdigit()):
+                    return int(value)
+            except:
+                pass
+            try:
+                if '.' in value or 'e' in value.lower():
+                    return float(value)
+            except:
+                pass
+        return value

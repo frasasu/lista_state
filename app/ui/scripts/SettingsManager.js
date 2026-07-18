@@ -93,7 +93,7 @@ class SettingsManager {
     }
 
     applyEditorFontSize() {
-        const editor = document.getElementById('editor');
+        const editor = document.getElementById('editor-r');
         if (!editor) return;
 
         const settings = this.getSettings();
